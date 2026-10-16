@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import estado from "../api/estado.js";
+import personal from "../api/personal.js";
+import {modulos} from "../shared/modulos.js";
+const respuesta=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(v){this.body=JSON.parse(v);}});
+test("Existen cinco módulos distintos y con alcance",()=>{assert.equal(modulos.length,5);assert.equal(new Set(modulos.map(m=>m.id)).size,5);assert.ok(modulos.every(m=>m.tareas.length>=6&&m.aceptacion));});
+test("La API informa que la integración real está pendiente",()=>{const res=respuesta();estado({method:"GET"},res);assert.equal(res.statusCode,200);assert.equal(res.body.escritorio,"pendiente");assert.equal(res.body.modulos.length,5);});
+test("Personal no simula registros reales",()=>{const res=respuesta();personal({method:"GET"},res);assert.equal(res.statusCode,501);});
+test("Estado rechaza escrituras",()=>{const res=respuesta();estado({method:"POST"},res);assert.equal(res.statusCode,405);});
