@@ -1,0 +1,488 @@
+/* src/modules/operaciones/styles/operaciones.css */
+/* Estilos encapsulados con prefijo .op- para no interferir con otros módulos */
+
+.op-contenedor {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.op-cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #dce4d6;
+}
+
+.op-cabecera-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.op-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.op-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  background: #e8efdf;
+  color: #173c32;
+  border: 1px solid #cddac2;
+}
+
+.op-badge-activo {
+  background: #e3f5ec;
+  color: #115e3b;
+  border-color: #a9dec2;
+}
+
+.op-badge-pausado {
+  background: #fff6df;
+  color: #7c5200;
+  border-color: #eed18a;
+}
+
+.op-badge-cerrado,
+.op-badge-baja {
+  background: #f3f4f2;
+  color: #546056;
+  border-color: #cfd6ce;
+}
+
+.op-badge-pasante {
+  background: #e7f0fb;
+  color: #154c8a;
+  border-color: #b7d2f2;
+}
+
+.op-badge-planta {
+  background: #ede9fb;
+  color: #462b8a;
+  border-color: #cec2f2;
+}
+
+/* Barra de simulación de contexto (Rol Módulo 01 y Red) */
+.op-barra-contexto {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  background: #f5f8f0;
+  border: 1px solid #d5dfcf;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 20px;
+}
+
+.op-contexto-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.op-contexto-item label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #365242;
+}
+
+/* Resumen KPI superior */
+.op-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.op-kpi-card {
+  background: #f9fbf7;
+  border: 1px solid #dce4d6;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.op-kpi-etiqueta {
+  font-size: 12px;
+  color: #5d705e;
+  font-weight: 600;
+}
+
+.op-kpi-valor {
+  font-size: 22px;
+  font-weight: 800;
+  color: #173c32;
+  overflow-wrap: anywhere;
+}
+
+.op-kpi-sub {
+  font-size: 12px;
+  color: #667867;
+}
+
+/* Navegación por pestañas táctiles (>= 44x44px) */
+.op-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.op-tab-btn {
+  min-height: 46px;
+  min-width: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cedbc7;
+  background: #ffffff;
+  color: #173c32;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.op-tab-btn[aria-selected="true"] {
+  background: #173c32;
+  color: #ffffff;
+  border-color: #173c32;
+}
+
+/* Alertas y notificaciones */
+.op-alerta {
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.op-alerta-exito {
+  background: #e6f6ed;
+  border: 1px solid #9ad7b4;
+  color: #104e2e;
+}
+
+.op-alerta-error {
+  background: #fdecec;
+  border: 1px solid #f1aeb5;
+  color: #7d1a24;
+}
+
+.op-alerta-info {
+  background: #eef4fa;
+  border: 1px solid #b8d2ec;
+  color: #1c4973;
+}
+
+/* Tarjetas de listado */
+.op-lista-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.op-card {
+  background: #ffffff;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.op-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.op-card-titulo {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #173c32;
+  overflow-wrap: anywhere;
+}
+
+.op-card-meta {
+  font-size: 14px;
+  color: #4b5e4d;
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.op-card-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+/* Formularios accesibles y responsivos */
+.op-form-panel {
+  background: #f9fbf7;
+  border: 1px solid #cfd9c8;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.op-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.op-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.op-campo-completo {
+  grid-column: 1 / -1;
+}
+
+.op-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #173c32;
+}
+
+.op-ayuda {
+  font-size: 12px;
+  color: #5a6d5c;
+  margin: 0;
+}
+
+.op-input,
+.op-select,
+.op-textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-family: inherit;
+  color: #173c32;
+  background: #ffffff;
+  border: 1px solid #b8c7b3;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.op-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.op-input:focus-visible,
+.op-select:focus-visible,
+.op-textarea:focus-visible {
+  outline: 3px solid #6eac84;
+  outline-offset: 2px;
+  border-color: #1c624b;
+}
+
+.op-input[aria-invalid="true"],
+.op-select[aria-invalid="true"],
+.op-textarea[aria-invalid="true"] {
+  border-color: #c92a2a;
+  background: #fff9f9;
+}
+
+.op-error-campo {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b42318;
+}
+
+/* Botones táctiles >= 44x44px */
+.op-btn {
+  min-height: 46px;
+  min-width: 44px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.op-btn-primario {
+  background: #1c624b;
+  color: #ffffff;
+}
+
+.op-btn-primario:hover {
+  background: #154c3a;
+}
+
+.op-btn-secundario {
+  background: #ffffff;
+  color: #173c32;
+  border-color: #bccab6;
+}
+
+.op-btn-peligro {
+  background: #fff0f0;
+  color: #9e1c1c;
+  border-color: #f1b6b6;
+}
+
+.op-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.op-acciones-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Contenedor de tabla con scroll propio identificado */
+.op-tabla-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #dce4d6;
+  border-radius: 10px;
+  background: #ffffff;
+  margin-bottom: 18px;
+}
+
+.op-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+  font-size: 14px;
+}
+
+.op-tabla th,
+.op-tabla td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #e7eee2;
+}
+
+.op-tabla th {
+  background: #f3f7ef;
+  font-weight: 700;
+  color: #27483b;
+}
+
+.op-checkbox-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #cdd8c7;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.op-checkbox-fila input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+/* Adaptación para tabletas y teléfonos (<= 900px y <= 700px) */
+@media (max-width: 900px) {
+  .op-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .op-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .op-barra-contexto {
+    grid-template-columns: 1fr;
+  }
+  .op-lista-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Teléfonos (320px, 360px, 390px): 1 sola columna obligatoria y botones de ancho completo */
+@media (max-width: 700px) {
+  .op-kpis {
+    grid-template-columns: 1fr;
+  }
+  .op-tabs {
+    grid-template-columns: 1fr;
+  }
+  .op-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .op-form-panel {
+    padding: 14px;
+  }
+  .op-card {
+    padding: 14px;
+  }
+  .op-card-acciones {
+    flex-direction: column;
+  }
+  .op-card-acciones .op-btn,
+  .op-acciones-barra .op-btn {
+    width: 100%;
+  }
+}
+
+/* Impresión A4 para conciliación con Reportes */
+@media print {
+  .volver,
+  .op-barra-contexto,
+  .op-tabs,
+  .op-card-acciones,
+  .op-no-print {
+    display: none !important;
+  }
+  .detalle-modulo,
+  .op-card,
+  .op-kpi-card {
+    border: 1px solid #999 !important;
+    box-shadow: none !important;
+    padding: 12px !important;
+  }
+}
