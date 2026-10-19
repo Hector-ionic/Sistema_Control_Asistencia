@@ -1,6 +1,7 @@
 // src/modules/operaciones/components/ProyectoForm.jsx
 import React, { useState } from "react";
-import { validarProyecto } from "../utils/reglasOperaciones.js";
+import { ESTADOS_PROYECTO } from "../mocks/datosPrueba.js";
+import { validarProyecto, hoyBolivia } from "../utils/reglasOperaciones.js";
 
 export default function ProyectoForm({
   proyectoInicial = null,
@@ -9,18 +10,21 @@ export default function ProyectoForm({
   alGuardar,
   alCancelar
 }) {
-  const esEdicion = Boolean(proyectoInicial?.id);
+  const esEdicion = Boolean(proyectoInicial?.idProyecto);
 
   const [formData, setFormData] = useState({
-    id: proyectoInicial?.id || null,
-    codigo: proyectoInicial?.codigo || "",
+    idProyecto: proyectoInicial?.idProyecto ?? 0,
+    codigo:
+      proyectoInicial?.codigo ||
+      `PRY-2026-0${proyectosExistentes.length + 1}`,
     nombre: proyectoInicial?.nombre || "",
-    descripcion: proyectoInicial?.descripcion || "",
+    cliente: proyectoInicial?.cliente || "",
     ubicacion: proyectoInicial?.ubicacion || "",
-    estado: proyectoInicial?.estado || "Activo",
-    fechaInicio: proyectoInicial?.fechaInicio || "2026-10-16",
-    fechaFin: proyectoInicial?.fechaFin || "2026-11-30",
-    presupuestoViaticos: proyectoInicial?.presupuestoViaticos ?? 2000
+    descripcion: proyectoInicial?.descripcion || "",
+    estado: proyectoInicial?.estado || "Planificado",
+    fechaInicio: proyectoInicial?.fechaInicio || hoyBolivia(),
+    fechaFin: proyectoInicial?.fechaFin || "",
+    version: proyectoInicial?.version ?? 0
   });
 
   const [errores, setErrores] = useState({});
@@ -39,22 +43,50 @@ export default function ProyectoForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const resultado = validarProyecto(formData, proyectosExistentes, formData.id);
+    const resultado = validarProyecto(
+      formData,
+      proyectosExistentes,
+      formData.idProyecto
+    );
     if (!resultado.valido) {
       setErrores(resultado.errores);
       return;
     }
-    alGuardar(formData);
+    alGuardar(resultado.payload);
   };
 
   return (
     <section className="op-form-panel" aria-labelledby="titulo-form-proyecto">
-      <h3 id="titulo-form-proyecto" style={{ marginTop: 0, marginBottom: "14px" }}>
-        {esEdicion ? `Editar proyecto: ${proyectoInicial.nombre}` : "Nuevo proyecto operativo"}
-      </h3>
+      <div className="op-card-header" style={{ marginBottom: "12px" }}>
+        <h3 id="titulo-form-proyecto" style={{ margin: 0 }}>
+          {esEdicion
+            ? `Editar proyecto: ${proyectoInicial.nombre}`
+            : "Nuevo proyecto operativo"}
+        </h3>
+        {esEdicion && (
+          <span className="op-badge">Versión {formData.version}</span>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} noValidate>
         <div className="op-form-grid">
+          <div className="op-campo">
+            <label className="op-label" htmlFor="pry-codigo">
+              Código del proyecto *
+            </label>
+            <input
+              id="pry-codigo"
+              name="codigo"
+              type="text"
+              className="op-input"
+              value={formData.codigo}
+              onChange={handleChange}
+              placeholder="Ej. PRY-2026-04"
+              aria-invalid={Boolean(errores.codigo)}
+            />
+            {errores.codigo && <p className="op-error-campo">{errores.codigo}</p>}
+          </div>
+
           <div className="op-campo">
             <label className="op-label" htmlFor="pry-nombre">
               Nombre del proyecto *
@@ -70,6 +102,21 @@ export default function ProyectoForm({
               aria-invalid={Boolean(errores.nombre)}
             />
             {errores.nombre && <p className="op-error-campo">{errores.nombre}</p>}
+          </div>
+
+          <div className="op-campo">
+            <label className="op-label" htmlFor="pry-cliente">
+              Cliente / Unidad solicitante
+            </label>
+            <input
+              id="pry-cliente"
+              name="cliente"
+              type="text"
+              className="op-input"
+              value={formData.cliente}
+              onChange={handleChange}
+              placeholder="Ej. SII Oficina Santiago II"
+            />
           </div>
 
           <div className="op-campo">
@@ -107,23 +154,23 @@ export default function ProyectoForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="pry-fecha-fin">
-              Fecha de finalización *
+              Fecha de finalización (opcional)
             </label>
             <input
               id="pry-fecha-fin"
               name="fechaFin"
               type="date"
               className="op-input"
-              value={formData.fechaFin}
+              value={formData.fechaFin || ""}
               onChange={handleChange}
               aria-invalid={Boolean(errores.fechaFin)}
             />
             {errores.fechaFin && <p className="op-error-campo">{errores.fechaFin}</p>}
           </div>
 
-          <div className="op-campo">
+          <div className="op-campo op-campo-completo">
             <label className="op-label" htmlFor="pry-estado">
-              Estado operativo
+              Estado del proyecto *
             </label>
             <select
               id="pry-estado"
@@ -133,30 +180,13 @@ export default function ProyectoForm({
               onChange={handleChange}
               aria-invalid={Boolean(errores.estado)}
             >
-              <option value="Activo">Activo (permite asignaciones y viáticos)</option>
-              <option value="Pausado">Pausado (sin nuevas asignaciones)</option>
+              {ESTADOS_PROYECTO.map((est) => (
+                <option key={est} value={est}>
+                  {est}
+                </option>
+              ))}
             </select>
             {errores.estado && <p className="op-error-campo">{errores.estado}</p>}
-          </div>
-
-          <div className="op-campo">
-            <label className="op-label" htmlFor="pry-presupuesto">
-              Presupuesto para viáticos (Bs) *
-            </label>
-            <input
-              id="pry-presupuesto"
-              name="presupuestoViaticos"
-              type="number"
-              min="0"
-              step="0.50"
-              className="op-input"
-              value={formData.presupuestoViaticos}
-              onChange={handleChange}
-              aria-invalid={Boolean(errores.presupuestoViaticos)}
-            />
-            {errores.presupuestoViaticos && (
-              <p className="op-error-campo">{errores.presupuestoViaticos}</p>
-            )}
           </div>
 
           <div className="op-campo op-campo-completo">
@@ -178,7 +208,11 @@ export default function ProyectoForm({
 
         <div className="op-card-acciones" style={{ marginTop: "16px" }}>
           <button type="submit" className="op-btn op-btn-primario" disabled={guardando}>
-            {guardando ? "Guardando proyecto..." : esEdicion ? "Guardar cambios" : "Registrar proyecto"}
+            {guardando
+              ? "Guardando proyecto..."
+              : esEdicion
+              ? "Guardar cambios"
+              : "Registrar proyecto"}
           </button>
           <button
             type="button"

@@ -7,13 +7,14 @@ export default function TotalesReportesPanel({
   personal = [],
   asignaciones = [],
   viaticos = [],
-  auditoria = []
+  auditoria = [],
+  rolActual = "SuperAdmin"
 }) {
   const [filtros, setFiltros] = useState({
     idProyecto: "",
-    idPersonal: "",
-    fechaDesde: "",
-    fechaHasta: ""
+    idPasante: "",
+    inicio: "",
+    fin: ""
   });
 
   const [mostrarContratoJson, setMostrarContratoJson] = useState(false);
@@ -34,44 +35,43 @@ export default function TotalesReportesPanel({
   const limpiarFiltros = () => {
     setFiltros({
       idProyecto: "",
-      idPersonal: "",
-      fechaDesde: "",
-      fechaHasta: ""
+      idPasante: "",
+      inicio: "",
+      fin: ""
     });
   };
 
   const exportarCsvConciliado = () => {
     const encabezados = [
-      "ID_Viatico",
-      "Fecha",
-      "Proyecto",
-      "Persona",
-      "Tipo_Personal",
-      "Categoria",
-      "Monto_Base_Bs",
-      "Monto_Adicional_Bs",
-      "Total_Bs",
-      "Comprobante",
-      "Estado"
+      "idViatico",
+      "fecha",
+      "idPasante",
+      "codigo",
+      "persona",
+      "tipoContrato",
+      "concepto",
+      "monto_Bs",
+      "gastoExtra_Bs",
+      "total_Bs"
     ];
 
     const filas = resumen.registrosConciliados.map((v) => {
-      const pry = proyectos.find((p) => Number(p.id) === Number(v.idProyecto));
-      const per = personal.find((p) => Number(p.id) === Number(v.idPersonal));
+      const per = personal.find(
+        (p) => Number(p.idPasante) === Number(v.idPasante)
+      );
       const base = Number(v.monto || 0);
-      const adic = v.esGastoAdicional ? Number(v.montoAdicional || 0) : 0;
+      const extra = Number(v.gastoExtra || 0);
       return [
-        v.id,
+        v.idViatico,
         v.fecha,
-        `"${(pry?.nombre || "").replace(/"/g, '""')}"`,
+        v.idPasante,
+        per?.codigo || "",
         `"${per ? `${per.nombres} ${per.apellidos}` : ""}"`,
-        per?.tipo || "",
-        v.categoria,
+        `"${per?.tipoContrato || ""}"`,
+        `"${(v.concepto || "").replace(/"/g, '""')}"`,
         base.toFixed(2),
-        adic.toFixed(2),
-        (base + adic).toFixed(2),
-        `"${(v.comprobante || "").replace(/"/g, '""')}"`,
-        v.estado
+        extra.toFixed(2),
+        (base + extra).toFixed(2)
       ].join(",");
     });
 
@@ -87,13 +87,20 @@ export default function TotalesReportesPanel({
 
   return (
     <div>
-      {/* Filtros de período, proyecto y persona */}
-      <section className="op-form-panel op-no-print" aria-labelledby="titulo-filtros-totales">
+      {/* Filtros de Totales y Reportes */}
+      <section
+        className="op-form-panel op-no-print"
+        aria-labelledby="titulo-filtros-totales"
+      >
         <div className="op-card-header" style={{ marginBottom: "12px" }}>
           <h3 id="titulo-filtros-totales" style={{ margin: 0 }}>
-            Filtros de Conciliación (Totales y Enlace con Módulo 04 Reportes)
+            Filtros por Proyecto, Persona y Período
           </h3>
-          <button type="button" className="op-btn op-btn-secundario" onClick={limpiarFiltros}>
+          <button
+            type="button"
+            className="op-btn op-btn-secundario"
+            onClick={limpiarFiltros}
+          >
             Limpiar filtros
           </button>
         </div>
@@ -112,79 +119,85 @@ export default function TotalesReportesPanel({
             >
               <option value="">Todos los proyectos</option>
               {proyectos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre} ({p.estado})
+                <option key={p.idProyecto} value={p.idProyecto}>
+                  {p.codigo} · {p.nombre} ({p.estado})
                 </option>
               ))}
             </select>
           </div>
 
           <div className="op-campo">
-            <label className="op-label" htmlFor="filtro-personal">
+            <label className="op-label" htmlFor="filtro-pasante">
               Filtrar por Persona
             </label>
             <select
-              id="filtro-personal"
-              name="idPersonal"
+              id="filtro-pasante"
+              name="idPasante"
               className="op-select"
-              value={filtros.idPersonal}
+              value={filtros.idPasante}
               onChange={handleFiltroChange}
             >
               <option value="">Todo el personal</option>
               {personal.map((per) => (
-                <option key={per.id} value={per.id}>
-                  {per.nombres} {per.apellidos} ({per.tipo})
+                <option key={per.idPasante} value={per.idPasante}>
+                  [{per.codigo}] {per.nombres} {per.apellidos} ({per.tipoContrato})
                 </option>
               ))}
             </select>
           </div>
 
           <div className="op-campo">
-            <label className="op-label" htmlFor="filtro-desde">
+            <label className="op-label" htmlFor="filtro-inicio">
               Período desde
             </label>
             <input
-              id="filtro-desde"
-              name="fechaDesde"
+              id="filtro-inicio"
+              name="inicio"
               type="date"
               className="op-input"
-              value={filtros.fechaDesde}
+              value={filtros.inicio}
               onChange={handleFiltroChange}
             />
           </div>
 
           <div className="op-campo">
-            <label className="op-label" htmlFor="filtro-hasta">
+            <label className="op-label" htmlFor="filtro-fin">
               Período hasta
             </label>
             <input
-              id="filtro-hasta"
-              name="fechaHasta"
+              id="filtro-fin"
+              name="fin"
               type="date"
               className="op-input"
-              value={filtros.fechaHasta}
+              value={filtros.fin}
               onChange={handleFiltroChange}
             />
           </div>
         </div>
 
         <div className="op-card-acciones" style={{ marginTop: "14px" }}>
-          <button type="button" className="op-btn op-btn-primario" onClick={exportarCsvConciliado}>
-            Exportar CSV conciliado (Módulo 04)
+          <button
+            type="button"
+            className="op-btn op-btn-primario"
+            onClick={exportarCsvConciliado}
+          >
+            Exportar CSV conciliado
           </button>
           <button
             type="button"
             className="op-btn op-btn-secundario"
             onClick={() => window.print()}
           >
-            Vista de impresión A4
+            Impresión A4 / PDF
           </button>
           <button
             type="button"
             className="op-btn op-btn-secundario"
             onClick={() => setMostrarContratoJson((prev) => !prev)}
           >
-            {mostrarContratoJson ? "Ocultar contrato API Reportes" : "Ver contrato JSON para Módulo 04"}
+            {mostrarContratoJson
+              ? "Ocultar datos de enlace con Reportes"
+              : "Ver enlace de datos para Reportes"}
           </button>
         </div>
       </section>
@@ -194,46 +207,47 @@ export default function TotalesReportesPanel({
         <div className="op-kpi-card">
           <span className="op-kpi-etiqueta">Total Viáticos Conciliado</span>
           <strong className="op-kpi-valor">
-            {resumen.moneda} {resumen.resumenGlobal.totalGeneralConciliado.toFixed(2)}
+            {resumen.moneda}{" "}
+            {resumen.resumenGlobal.totalGeneralConciliado.toFixed(2)}
           </strong>
           <span className="op-kpi-sub">
-            {resumen.resumenGlobal.cantidadVigentes} registro(s) vigente(s)
+            {resumen.resumenGlobal.cantidadViaticos} registro(s) en el período
           </span>
         </div>
 
         <div className="op-kpi-card">
-          <span className="op-kpi-etiqueta">Monto Base Acumulado</span>
+          <span className="op-kpi-etiqueta">Viático Base</span>
           <strong className="op-kpi-valor">
             {resumen.moneda} {resumen.resumenGlobal.totalMontoBase.toFixed(2)}
           </strong>
-          <span className="op-kpi-sub">Según topes por categoría</span>
+          <span className="op-kpi-sub">Tope base vigente: hasta 12.00 Bs</span>
         </div>
 
         <div className="op-kpi-card">
           <span className="op-kpi-etiqueta">Gastos Adicionales</span>
           <strong className="op-kpi-valor">
-            {resumen.moneda} {resumen.resumenGlobal.totalMontoAdicional.toFixed(2)}
+            {resumen.moneda} {resumen.resumenGlobal.totalGastoExtra.toFixed(2)}
           </strong>
-          <span className="op-kpi-sub">Con respaldo y justificación</span>
+          <span className="op-kpi-sub">Gastos extraordinarios registrados</span>
         </div>
 
         <div className="op-kpi-card">
-          <span className="op-kpi-etiqueta">Participaciones / Bajas</span>
+          <span className="op-kpi-etiqueta">Participaciones en Rango</span>
           <strong className="op-kpi-valor">
-            {resumen.resumenGlobal.totalAsignacionesEnPeriodo} / {resumen.resumenGlobal.cantidadBajas}
+            {resumen.resumenGlobal.totalAsignacionesEnPeriodo}
           </strong>
-          <span className="op-kpi-sub">Asignaciones en rango / Viáticos de baja</span>
+          <span className="op-kpi-sub">Asignaciones en el período</span>
         </div>
       </div>
 
       {mostrarContratoJson && (
-        <section className="op-form-panel op-no-print" aria-label="Contrato JSON para Módulo 04">
+        <section
+          className="op-form-panel op-no-print"
+          aria-label="Contrato JSON para Módulo 04"
+        >
           <h4 style={{ marginTop: 0, marginBottom: "8px" }}>
-            Contrato compartido `/api/operaciones?accion=resumen-reportes` (Módulo 05 → Módulo 04)
+            Datos conciliados para el Módulo 04 (Historial y reportes)
           </h4>
-          <p className="op-ayuda" style={{ marginBottom: "10px" }}>
-            Este objeto es consumido por el Módulo 04 (Historial y reportes) garantizando que los totales coincidan exactamente con los reportes impresos y exportados.
-          </p>
           <pre
             style={{
               background: "#173c32",
@@ -252,18 +266,26 @@ export default function TotalesReportesPanel({
       )}
 
       {/* Totales por Proyecto */}
-      <h3 style={{ marginTop: "20px", marginBottom: "10px" }}>Totales por Proyecto</h3>
-      <div className="op-tabla-wrapper" role="region" aria-label="Tabla de totales por proyecto" tabIndex={0}>
+      <h3 style={{ marginTop: "20px", marginBottom: "10px" }}>
+        Totales por Proyecto
+      </h3>
+      <div
+        className="op-tabla-wrapper"
+        role="region"
+        aria-label="Tabla de totales por proyecto"
+        tabIndex={0}
+      >
         <table className="op-tabla">
           <thead>
             <tr>
               <th>Proyecto</th>
+              <th>Cliente</th>
               <th>Estado</th>
               <th>Período</th>
               <th>Participaciones</th>
-              <th>Presupuesto ({resumen.moneda})</th>
-              <th>Ejecutado ({resumen.moneda})</th>
-              <th>Saldo ({resumen.moneda})</th>
+              <th>Base ({resumen.moneda})</th>
+              <th>Adicional ({resumen.moneda})</th>
+              <th>Total ({resumen.moneda})</th>
             </tr>
           </thead>
           <tbody>
@@ -271,17 +293,21 @@ export default function TotalesReportesPanel({
               <tr key={p.idProyecto}>
                 <td>
                   <strong>{p.nombre}</strong>
-                  <div style={{ fontSize: "12px", color: "#5d705e" }}>{p.codigo}</div>
+                  <div style={{ fontSize: "12px", color: "#5d705e" }}>
+                    {p.codigo}
+                  </div>
                 </td>
+                <td>{p.cliente || "—"}</td>
                 <td>{p.estado}</td>
                 <td>{p.periodo}</td>
-                <td>{p.participantesCount}</td>
-                <td>{p.presupuestoViaticos.toFixed(2)}</td>
                 <td>
-                  <strong>{p.totalViaticos.toFixed(2)}</strong> ({p.viaticosCount} reg.)
+                  {p.participantesCount} ({p.activosCount} act.)
                 </td>
-                <td style={{ color: p.saldoPresupuesto < 0 ? "#b42318" : "#115e3b", fontWeight: 700 }}>
-                  {p.saldoPresupuesto.toFixed(2)}
+                <td>{p.totalBase.toFixed(2)}</td>
+                <td>{p.totalGastoExtra.toFixed(2)}</td>
+                <td>
+                  <strong>{p.totalViaticos.toFixed(2)}</strong> ({p.viaticosCount}{" "}
+                  reg.)
                 </td>
               </tr>
             ))}
@@ -291,41 +317,57 @@ export default function TotalesReportesPanel({
 
       {/* Totales por Persona */}
       <h3 style={{ marginTop: "24px", marginBottom: "10px" }}>
-        Totales por Persona (Respetando tipo Planta / Pasante)
+        Totales por Persona
       </h3>
-      <div className="op-tabla-wrapper" role="region" aria-label="Tabla de totales por persona" tabIndex={0}>
+      <div
+        className="op-tabla-wrapper"
+        role="region"
+        aria-label="Tabla de totales por persona"
+        tabIndex={0}
+      >
         <table className="op-tabla">
           <thead>
             <tr>
               <th>Persona</th>
-              <th>Tipo (Módulo 02)</th>
+              <th>Tipo de Personal</th>
+              <th>Meta Horas</th>
               <th>Asignaciones</th>
-              <th>Viáticos Base ({resumen.moneda})</th>
-              <th>Adicionales ({resumen.moneda})</th>
+              <th>Base ({resumen.moneda})</th>
+              <th>Adicional ({resumen.moneda})</th>
               <th>Total Conciliado ({resumen.moneda})</th>
             </tr>
           </thead>
           <tbody>
             {resumen.porPersona.map((per) => (
-              <tr key={per.idPersonal}>
+              <tr key={per.idPasante}>
                 <td>
                   <strong>{per.nombreCompleto}</strong>
-                  <div style={{ fontSize: "12px", color: "#5d705e" }}>{per.codigo}</div>
+                  <div style={{ fontSize: "12px", color: "#5d705e" }}>
+                    Código: {per.codigo}
+                  </div>
                 </td>
                 <td>
                   <span
                     className={`op-badge ${
-                      per.tipo === "Pasante" ? "op-badge-pasante" : "op-badge-planta"
+                      per.tipoContrato === "Pasante"
+                        ? "op-badge-pasante"
+                        : "op-badge-planta"
                     }`}
                   >
-                    {per.tipo}
+                    {per.tipoContrato}
                   </span>
+                </td>
+                <td>
+                  {per.aplicaMetaPasantia
+                    ? `${per.horasRequeridas} h`
+                    : "Sin meta"}
                 </td>
                 <td>{per.asignacionesCount}</td>
                 <td>{per.totalBase.toFixed(2)}</td>
-                <td>{per.totalAdicional.toFixed(2)}</td>
+                <td>{per.totalGastoExtra.toFixed(2)}</td>
                 <td>
-                  <strong>{per.totalViaticosConciliado.toFixed(2)}</strong> ({per.viaticosCount} reg.)
+                  <strong>{per.totalViaticosConciliado.toFixed(2)}</strong> (
+                  {per.viaticosCount} reg.)
                 </td>
               </tr>
             ))}
@@ -333,27 +375,42 @@ export default function TotalesReportesPanel({
         </table>
       </div>
 
-      {/* Bitácora de Auditoría de Operaciones */}
+      {/* Bitácora de Auditoría */}
       <h3 style={{ marginTop: "26px", marginBottom: "10px" }}>
-        Auditoría de Operaciones (Zona horaria America/La_Paz)
+        Auditoría de Operaciones
       </h3>
-      <div className="op-lista-grid">
-        {auditoria.map((evento) => (
-          <article key={evento.id} className="op-card">
-            <div className="op-card-header">
-              <span className="op-badge">{evento.accion}</span>
-              <span style={{ fontSize: "12px", color: "#556857", fontFamily: "monospace" }}>
-                {evento.fechaHora} ({evento.zonaHoraria})
-              </span>
-            </div>
-            <p className="op-card-meta">
-              <strong>Entidad:</strong> {evento.entidad} · <strong>Usuario:</strong> {evento.usuario} (
-              {evento.rol})
-            </p>
-            <p className="op-card-meta">{evento.detalle}</p>
-          </article>
-        ))}
-      </div>
+      {rolActual !== "SuperAdmin" ? (
+        <div className="op-alerta op-alerta-info">
+          <span>
+            La consulta del historial completo de auditoría está reservada para el rol{" "}
+            <strong>SuperAdmin</strong> (rol actual: <strong>{rolActual}</strong>).
+          </span>
+        </div>
+      ) : (
+        <div className="op-lista-grid">
+          {auditoria.map((evento) => (
+            <article key={evento.idAuditoria || evento.id} className="op-card">
+              <div className="op-card-header">
+                <span className="op-badge">{evento.operacion || evento.accion}</span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "#556857",
+                    fontFamily: "monospace"
+                  }}
+                >
+                  {evento.fechaHora} ({evento.zonaHoraria || "America/La_Paz"})
+                </span>
+              </div>
+              <p className="op-card-meta">
+                <strong>Entidad:</strong> {evento.entidad} ·{" "}
+                <strong>Usuario:</strong> {evento.usuario} ({evento.rol})
+              </p>
+              <p className="op-card-meta">{evento.detalle}</p>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

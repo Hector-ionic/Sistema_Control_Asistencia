@@ -2,11 +2,18 @@
 import React, { useEffect, useState } from "react";
 import "./styles/operaciones.css";
 import { REGLAS_VIATICOS_VIGENTES } from "./mocks/datosPrueba.js";
-import { importeTotalViatico } from "./utils/reglasOperaciones.js";
 import {
-  cargarDatosOperaciones,
-  procesarOperacionModulo05,
-  restaurarDatosPruebaOperaciones
+  importeTotalViatico,
+  prepararCierreProyecto,
+  prepararFinalizacionAsignacion
+} from "./utils/reglasOperaciones.js";
+import {
+  ejecutarOperacionModulo05,
+  cargarColeccionesModulo05,
+  obtenerTokenMemoria,
+  obtenerSesionMemoria,
+  cerrarSesionMemoria,
+  reiniciarMemoriaSimulada
 } from "./services/operacionesService.js";
 import ProyectoForm from "./components/ProyectoForm.jsx";
 import AsignacionForm from "./components/AsignacionForm.jsx";
@@ -15,29 +22,37 @@ import TotalesReportesPanel from "./components/TotalesReportesPanel.jsx";
 
 export default function Operaciones({ modulo }) {
   const [pestanaActiva, setPestanaActiva] = useState("proyectos");
-  const [rolUsuario, setRolUsuario] = useState("administrador");
+
+  // Estado de conexión y modo de contrato (/api/backend real vs simulador de contrato en memoria)
+  const [usarContratoMemoria, setUsarContratoMemoria] = useState(false);
   const [modoRed, setModoRed] = useState("normal");
+  const [estadoBackend, setEstadoBackend] = useState(
+    "Verificando conexión con el backend..."
+  );
 
-  const [cargando, setCargando] = useState(true);
+  // Sesión exclusivamente en memoria (sin localStorage ni x-rol-usuario)
+  const [tokenSesion, setTokenSesion] = useState(() => obtenerTokenMemoria());
+  const [usuarioActual, setUsuarioActual] = useState(() => obtenerSesionMemoria());
+  const [credencialesLogin, setCredencialesLogin] = useState({
+    usuario: "superadmin",
+    password: "clave-de-prueba"
+  });
+
+  const [cargando, setCargando] = useState(false);
   const [procesando, setProcesando] = useState(false);
-  const [estadoConexion, setEstadoConexion] = useState("Verificando conexión...");
-  const [estadoModulo02, setEstadoModulo02] = useState("Consultando /api/personal...");
+  const [aviso, setAviso] = useState(null);
 
+  // Colecciones recibidas de las operaciones del backend
   const [personal, setPersonal] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [asignaciones, setAsignaciones] = useState([]);
   const [viaticos, setViaticos] = useState([]);
   const [auditoria, setAuditoria] = useState([]);
 
-  // Notificación accesible en pantalla (reemplaza alert())
-  const [aviso, setAviso] = useState(null);
-
-  // Estados de formularios y diálogos en línea
+  // Formularios y confirmaciones en línea
   const [formProyectoAbierto, setFormProyectoAbierto] = useState(false);
   const [proyectoEditando, setProyectoEditando] = useState(null);
-  const [proyectoPorCerrar, setProyectoPorCerrar] = useState(null);
-  const [motivoCierreProyecto, setMotivoCierreProyecto] = useState("");
-  const [errorCierreProyecto, setErrorCierreProyecto] = useState("");
+  const [proyectoPorFinalizar, setProyectoPorFinalizar] = useState(null);
 
   const [formAsignacionAbierto, setFormAsignacionAbierto] = useState(false);
   const [asignacionEditando, setAsignacionEditando] = useState(null);
@@ -45,224 +60,328 @@ export default function Operaciones({ modulo }) {
 
   const [formViaticoAbierto, setFormViaticoAbierto] = useState(false);
   const [viaticoEditando, setViaticoEditando] = useState(null);
-  const [viaticoPorDarDeBaja, setViaticoPorDarDeBaja] = useState(null);
-  const [motivoBajaViatico, setMotivoBajaViatico] = useState("");
-  const [errorBajaViatico, setErrorBajaViatico] = useState("");
+  const [viaticoPorEliminar, setViaticoPorEliminar] = useState(null);
 
-  const sincronizarDatos = async (modo = modoRed) => {
+  // Comprobar disponibilidad de GET /api/backend al iniciar
+  useEffect(() => {
+    let activo = true;
+    async function verificarContratoBackend() {
+      try {
+        const res = await fetch("/api/backend", {
+          method: "GET",
+          cache: "no-store"
+        });
+        if (!activo) return;
+        if (res.ok) {
+          setUsarContratoMemoria(false);
+          setEstadoBackend("Conectado al servidor (/api/backend)");
+        } else {
+          setUsarContratoMemoria(true);
+          setEstadoBackend("Modo de prueba en memoria activo");
+        }
+      } catch {
+        if (!activo) return;
+        setUsarContratoMemoria(true);
+        setEstadoBackend("Modo de prueba en memoria activo");
+      }
+    }
+    verificarContratoBackend();
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const recargarColecciones = async (
+    forzarMemoria = usarContratoMemoria,
+    red = modoRed
+  ) => {
     setCargando(true);
-    setAviso(null);
     try {
-      const respuesta = await cargarDatosOperaciones({ modoRed: modo });
-      setPersonal(respuesta.personal);
-      setProyectos(respuesta.proyectos);
-      setAsignaciones(respuesta.asignaciones);
-      setViaticos(respuesta.viaticos);
-      setAuditoria(respuesta.auditoria);
-      setEstadoConexion(respuesta.estadoConexion);
-      setEstadoModulo02(respuesta.estadoModulo02);
-    } catch (err) {
-      setAviso({
-        tipo: "error",
-        texto: err.message || "Error al conectar con el servicio de operaciones."
+      const datos = await cargarColeccionesModulo05({
+        usarContratoMemoria: forzarMemoria,
+        modoRed: red
       });
+      setProyectos(datos.proyectos);
+      setAsignaciones(datos.asignaciones);
+      setViaticos(datos.viaticos);
+      setPersonal(datos.personal);
+      setAuditoria(datos.auditoria);
+    } catch (error) {
+      if (error.status === 401) {
+        setTokenSesion("");
+        setUsuarioActual(null);
+        setAviso({
+          tipo: "error",
+          texto: "La sesión ha vencido o no es válida. Inicie sesión nuevamente."
+        });
+      } else {
+        setAviso({
+          tipo: "error",
+          texto: error.message || "No se pudo consultar el backend."
+        });
+      }
     } finally {
       setCargando(false);
     }
   };
 
-  useEffect(() => {
-    sincronizarDatos("normal");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const aplicarResultado = (resultado) => {
-    if (resultado?.estado) {
-      setPersonal(resultado.estado.personal);
-      setProyectos(resultado.estado.proyectos);
-      setAsignaciones(resultado.estado.asignaciones);
-      setViaticos(resultado.estado.viaticos);
-      setAuditoria(resultado.estado.auditoria);
-    }
-  };
-
-  // --- Acciones de Proyectos ---
-  const handleGuardarProyecto = async (datosProyecto) => {
+  // --- Inicio y cierre de sesión en memoria ---
+  const handleIniciarSesion = async (e) => {
+    e.preventDefault();
     setProcesando(true);
     setAviso(null);
     try {
-      const res = await procesarOperacionModulo05({
-        tipoOperacion: "GUARDAR_PROYECTO",
-        datos: datosProyecto,
-        rolUsuario,
-        usuario: rolUsuario === "administrador" ? "admin.sii" : "operador.sii",
+      const respSesion = await ejecutarOperacionModulo05(
+        "sesion",
+        {
+          usuario: credencialesLogin.usuario,
+          password: credencialesLogin.password
+        },
+        { usarContratoMemoria, modoRed }
+      );
+
+      const nuevoToken = respSesion.accessToken;
+      setTokenSesion(nuevoToken);
+
+      const perfil = await ejecutarOperacionModulo05(
+        "sesion.actual",
+        {},
+        { usarContratoMemoria, modoRed }
+      );
+      setUsuarioActual(perfil);
+
+      await recargarColecciones(usarContratoMemoria, modoRed);
+      setAviso({
+        tipo: "exito",
+        texto: `Sesión iniciada como '${perfil.nombreUsuario}' (${perfil.rol}).`
+      });
+    } catch (error) {
+      if (error.status === 503 && !usarContratoMemoria) {
+        setAviso({
+          tipo: "error",
+          texto: `${error.message} (Puede cambiar a 'Modo de prueba en memoria' arriba para probar sin la API de escritorio encendida).`
+        });
+      } else {
+        setAviso({
+          tipo: "error",
+          texto: error.message || "Error al iniciar sesión."
+        });
+      }
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleCerrarSesion = () => {
+    cerrarSesionMemoria();
+    setTokenSesion("");
+    setUsuarioActual(null);
+    setProyectos([]);
+    setAsignaciones([]);
+    setViaticos([]);
+    setPersonal([]);
+    setAuditoria([]);
+    setAviso({
+      tipo: "info",
+      texto: "Sesión cerrada correctamente."
+    });
+  };
+
+  const manejarErrorOperacion = async (error) => {
+    if (error.status === 401) {
+      cerrarSesionMemoria();
+      setTokenSesion("");
+      setUsuarioActual(null);
+      setAviso({
+        tipo: "error",
+        texto: "Sesión requerida o vencida. Vuelva a iniciar sesión."
+      });
+      return;
+    }
+    if (error.status === 409) {
+      await recargarColecciones();
+      setAviso({
+        tipo: "error",
+        texto:
+          error.message ||
+          "Conflicto de versión: se recargaron los datos actuales desde el servidor. Revise antes de guardar."
+      });
+      return;
+    }
+    setAviso({
+      tipo: "error",
+      texto: error.message || "No se pudo completar la operación."
+    });
+  };
+
+  // --- 1. Operaciones de Proyectos ---
+  const handleGuardarProyecto = async (payloadProyecto) => {
+    setProcesando(true);
+    setAviso(null);
+    try {
+      await ejecutarOperacionModulo05("proyectos.guardar", payloadProyecto, {
+        usarContratoMemoria,
         modoRed
       });
-      if (!res.ok) {
-        setAviso({ tipo: "error", texto: res.mensaje });
-        return;
-      }
-      aplicarResultado(res);
+      await recargarColecciones();
       setFormProyectoAbierto(false);
       setProyectoEditando(null);
-      setAviso({ tipo: "exito", texto: res.mensaje });
-    } catch (err) {
-      setAviso({ tipo: "error", texto: err.message });
-    } finally {
-      setProcesando(false);
-    }
-  };
-
-  const handleConfirmarCierreProyecto = async (e) => {
-    e.preventDefault();
-    setErrorCierreProyecto("");
-    setProcesando(true);
-    try {
-      const res = await procesarOperacionModulo05({
-        tipoOperacion: "CERRAR_PROYECTO",
-        datos: {
-          idProyecto: proyectoPorCerrar.id,
-          motivoCierre: motivoCierreProyecto
-        },
-        rolUsuario,
-        usuario: rolUsuario === "administrador" ? "admin.sii" : "operador.sii",
-        modoRed
+      setAviso({
+        tipo: "exito",
+        texto:
+          payloadProyecto.idProyecto > 0
+            ? "Proyecto actualizado correctamente."
+            : "Proyecto registrado correctamente."
       });
-      if (!res.ok) {
-        setErrorCierreProyecto(res.mensaje);
-        return;
-      }
-      aplicarResultado(res);
-      setProyectoPorCerrar(null);
-      setMotivoCierreProyecto("");
-      setAviso({ tipo: "exito", texto: res.mensaje });
-    } catch (err) {
-      setErrorCierreProyecto(err.message);
+    } catch (error) {
+      await manejarErrorOperacion(error);
     } finally {
       setProcesando(false);
     }
   };
 
-  // --- Acciones de Asignaciones ---
-  const handleGuardarAsignacion = async (datosFormulario) => {
+  const handleConfirmarFinalizarProyecto = async () => {
+    if (!proyectoPorFinalizar) return;
     setProcesando(true);
     setAviso(null);
     try {
-      const res = await procesarOperacionModulo05({
-        tipoOperacion: "GUARDAR_ASIGNACION",
-        datos: datosFormulario,
-        rolUsuario,
-        usuario: rolUsuario === "administrador" ? "admin.sii" : "operador.sii",
+      const listaFresca = await ejecutarOperacionModulo05(
+        "proyectos.listar",
+        {},
+        { usarContratoMemoria, modoRed }
+      );
+      const proyectoLeido = listaFresca.find(
+        (p) => Number(p.idProyecto) === Number(proyectoPorFinalizar.idProyecto)
+      );
+      const payloadCierre = prepararCierreProyecto(
+        proyectoLeido || proyectoPorFinalizar
+      );
+
+      await ejecutarOperacionModulo05("proyectos.guardar", payloadCierre, {
+        usarContratoMemoria,
         modoRed
       });
-      if (!res.ok) {
-        setAviso({ tipo: "error", texto: res.mensaje });
-        return;
-      }
-      aplicarResultado(res);
+      await recargarColecciones();
+      setProyectoPorFinalizar(null);
+      setAviso({
+        tipo: "exito",
+        texto: `Proyecto '${payloadCierre.nombre}' finalizado conservando todas sus participaciones históricas.`
+      });
+    } catch (error) {
+      await manejarErrorOperacion(error);
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  // --- 2. Operaciones de Asignaciones ---
+  const handleGuardarAsignacion = async (payloadAsignacion) => {
+    setProcesando(true);
+    setAviso(null);
+    try {
+      await ejecutarOperacionModulo05(
+        "asignaciones.guardar",
+        payloadAsignacion,
+        { usarContratoMemoria, modoRed }
+      );
+      await recargarColecciones();
       setFormAsignacionAbierto(false);
       setAsignacionEditando(null);
       setProyectoPreseleccionado("");
-      setAviso({ tipo: "exito", texto: res.mensaje });
-    } catch (err) {
-      setAviso({ tipo: "error", texto: err.message });
+      setAviso({
+        tipo: "exito",
+        texto:
+          payloadAsignacion.idAsignacion > 0
+            ? "Asignación actualizada correctamente."
+            : "Asignación registrada correctamente."
+      });
+    } catch (error) {
+      await manejarErrorOperacion(error);
     } finally {
       setProcesando(false);
     }
   };
 
-  const handleFinalizarAsignacion = async (idAsignacion) => {
+  const handleFinalizarAsignacion = async (asignacionActual) => {
     setProcesando(true);
     setAviso(null);
     try {
-      const res = await procesarOperacionModulo05({
-        tipoOperacion: "FINALIZAR_ASIGNACION",
-        datos: { idAsignacion },
-        rolUsuario,
-        usuario: rolUsuario === "administrador" ? "admin.sii" : "operador.sii",
-        modoRed
+      const listaFresca = await ejecutarOperacionModulo05(
+        "asignaciones.listar",
+        { idProyecto: asignacionActual.idProyecto },
+        { usarContratoMemoria, modoRed }
+      );
+      const asignacionLeida = listaFresca.find(
+        (a) => Number(a.idAsignacion) === Number(asignacionActual.idAsignacion)
+      );
+      const payloadFinalizar = prepararFinalizacionAsignacion(
+        asignacionLeida || asignacionActual
+      );
+
+      await ejecutarOperacionModulo05(
+        "asignaciones.guardar",
+        payloadFinalizar,
+        { usarContratoMemoria, modoRed }
+      );
+      await recargarColecciones();
+      setAviso({
+        tipo: "exito",
+        texto: `Participación #${payloadFinalizar.idAsignacion} finalizada y conservada en el historial.`
       });
-      if (!res.ok) {
-        setAviso({ tipo: "error", texto: res.mensaje });
-        return;
-      }
-      aplicarResultado(res);
-      setAviso({ tipo: "exito", texto: res.mensaje });
-    } catch (err) {
-      setAviso({ tipo: "error", texto: err.message });
+    } catch (error) {
+      await manejarErrorOperacion(error);
     } finally {
       setProcesando(false);
     }
   };
 
-  // --- Acciones de Viáticos ---
-  const handleGuardarViatico = async (datosViatico) => {
+  // --- 3. Operaciones de Viáticos ---
+  const handleGuardarViatico = async (payloadViatico) => {
     setProcesando(true);
     setAviso(null);
     try {
-      const res = await procesarOperacionModulo05({
-        tipoOperacion: "GUARDAR_VIATICO",
-        datos: datosViatico,
-        rolUsuario,
-        usuario: rolUsuario === "administrador" ? "admin.sii" : "operador.sii",
+      await ejecutarOperacionModulo05("viaticos.guardar", payloadViatico, {
+        usarContratoMemoria,
         modoRed
       });
-      if (!res.ok) {
-        setAviso({ tipo: "error", texto: res.mensaje });
-        return;
-      }
-      aplicarResultado(res);
+      await recargarColecciones();
       setFormViaticoAbierto(false);
       setViaticoEditando(null);
-      setAviso({ tipo: "exito", texto: res.mensaje });
-    } catch (err) {
-      setAviso({ tipo: "error", texto: err.message });
-    } finally {
-      setProcesando(false);
-    }
-  };
-
-  const handleConfirmarBajaViatico = async (e) => {
-    e.preventDefault();
-    setErrorBajaViatico("");
-    setProcesando(true);
-    try {
-      const res = await procesarOperacionModulo05({
-        tipoOperacion: "BAJA_VIATICO",
-        datos: {
-          idViatico: viaticoPorDarDeBaja.id,
-          motivoBaja: motivoBajaViatico
-        },
-        rolUsuario,
-        usuario: rolUsuario === "administrador" ? "admin.sii" : "operador.sii",
-        modoRed
+      setAviso({
+        tipo: "exito",
+        texto:
+          payloadViatico.idViatico > 0
+            ? "Viático actualizado correctamente."
+            : "Viático registrado correctamente."
       });
-      if (!res.ok) {
-        setErrorBajaViatico(res.mensaje);
-        return;
-      }
-      aplicarResultado(res);
-      setViaticoPorDarDeBaja(null);
-      setMotivoBajaViatico("");
-      setAviso({ tipo: "exito", texto: res.mensaje });
-    } catch (err) {
-      setErrorBajaViatico(err.message);
+    } catch (error) {
+      await manejarErrorOperacion(error);
     } finally {
       setProcesando(false);
     }
   };
 
-  const handleRestaurarDemo = () => {
-    const base = restaurarDatosPruebaOperaciones();
-    setPersonal(base.personal);
-    setProyectos(base.proyectos);
-    setAsignaciones(base.asignaciones);
-    setViaticos(base.viaticos);
-    setAuditoria(base.auditoria);
-    setAviso({
-      tipo: "info",
-      texto: "Se restauraron los datos iniciales de prueba del Módulo 05."
-    });
+  const handleConfirmarEliminarViatico = async () => {
+    if (!viaticoPorEliminar) return;
+    setProcesando(true);
+    setAviso(null);
+    try {
+      await ejecutarOperacionModulo05(
+        "viaticos.eliminar",
+        { id: viaticoPorEliminar.idViatico },
+        { usarContratoMemoria, modoRed }
+      );
+      await recargarColecciones();
+      setViaticoPorEliminar(null);
+      setAviso({
+        tipo: "exito",
+        texto: `Viático #${viaticoPorEliminar.idViatico} eliminado del registro.`
+      });
+    } catch (error) {
+      await manejarErrorOperacion(error);
+    } finally {
+      setProcesando(false);
+    }
   };
 
   const abrirNuevaAsignacionParaProyecto = (idProyecto) => {
@@ -272,86 +391,121 @@ export default function Operaciones({ modulo }) {
     setPestanaActiva("asignaciones");
   };
 
-  // KPIs rápidos
-  const proyectosActivosCount = proyectos.filter((p) => p.estado === "Activo").length;
-  const asignacionesActivasCount = asignaciones.filter((a) => a.estado === "Activa").length;
-  const viaticosVigentes = viaticos.filter((v) => v.estado !== "Baja");
-  const totalViaticosVigentes = viaticosVigentes.reduce(
+  // KPIs
+  const proyectosEnCursoCount = proyectos.filter(
+    (p) => p.estado === "En curso" || p.estado === "Planificado"
+  ).length;
+  const asignacionesActivasCount = asignaciones.filter((a) => a.activo).length;
+  const totalViaticos = viaticos.reduce(
     (acc, v) => acc + importeTotalViatico(v),
     0
   );
 
   return (
-    <section className="detalle-modulo op-contenedor" aria-label="Módulo 05 Proyectos y viáticos">
-      {/* Encabezado institucional coherente con ModuloBase */}
+    <section
+      className="detalle-modulo op-contenedor"
+      aria-label="Módulo 05 Proyectos y viáticos"
+    >
+      {/* Cabecera */}
       <div className="op-cabecera">
         <div className="op-cabecera-top">
           <span className="numero">MÓDULO {modulo?.numero || "05"}</span>
           <div className="op-badges">
-            <span className="op-badge">{estadoConexion}</span>
-            <span className="op-badge">{estadoModulo02}</span>
+            <span className="op-badge">{estadoBackend}</span>
+            <span className="op-badge">
+              {tokenSesion
+                ? `Sesión activa: ${usuarioActual?.nombreUsuario || "usuario"} (${
+                    usuarioActual?.rol || "Autenticado"
+                  })`
+                : "Sin sesión iniciada"}
+            </span>
           </div>
         </div>
-        <h2 style={{ margin: "4px 0" }}>{modulo?.nombre || "Proyectos y viáticos"}</h2>
+        <h2 style={{ margin: "4px 0" }}>
+          {modulo?.nombre || "Proyectos y viáticos"}
+        </h2>
         <p style={{ margin: 0 }}>
           {modulo?.descripcion ||
             "Proyectos, asignaciones del equipo, gastos y control de operaciones."}
         </p>
       </div>
 
-      {/* Barra de contexto y pruebas obligatorias (Permisos Módulo 01 + Simulación de Red) */}
-      <div className="op-barra-contexto op-no-print" aria-label="Controles de sesión y red para pruebas">
+      {/* Barra de configuración de conexión y red */}
+      <div
+        className="op-barra-contexto op-no-print"
+        aria-label="Configuración de conexión y sesión"
+      >
         <div className="op-contexto-item">
-          <label htmlFor="op-selector-rol">
-            Rol activo (Integración Módulo 01 Acceso)
-          </label>
+          <label htmlFor="op-modo-contrato">Modo de conexión</label>
           <select
-            id="op-selector-rol"
+            id="op-modo-contrato"
             className="op-select"
-            value={rolUsuario}
-            onChange={(e) => setRolUsuario(e.target.value)}
+            value={usarContratoMemoria ? "memoria" : "backend"}
+            onChange={(e) => {
+              const usarMem = e.target.value === "memoria";
+              setUsarContratoMemoria(usarMem);
+              setEstadoBackend(
+                usarMem
+                  ? "Modo de prueba en memoria activo"
+                  : "Conectado al servidor (/api/backend)"
+              );
+            }}
           >
-            <option value="administrador">Administrador (Autoriza cierres y bajas)</option>
-            <option value="operador">Operador (Registra altas/ediciones; bajas restringidas)</option>
+            <option value="backend">
+              Servidor real (/api/backend · API C# + Base de datos)
+            </option>
+            <option value="memoria">
+              Modo de prueba en memoria (sin servidor de escritorio)
+            </option>
           </select>
         </div>
 
         <div className="op-contexto-item">
-          <label htmlFor="op-selector-red">
-            Prueba de red (Requisito móvil del informe)
-          </label>
+          <label htmlFor="op-selector-red">Estado de red (Prueba móvil)</label>
           <select
             id="op-selector-red"
             className="op-select"
             value={modoRed}
-            onChange={(e) => {
-              const nuevoModo = e.target.value;
-              setModoRed(nuevoModo);
-              sincronizarDatos(nuevoModo);
-            }}
+            onChange={(e) => setModoRed(e.target.value)}
           >
             <option value="normal">Conexión normal</option>
-            <option value="lenta">Conexión 3G lenta (prueba de estado de carga)</option>
-            <option value="error">Simular fallo de red (prueba de error y reintento)</option>
+            <option value="lenta">Conexión lenta (verificar carga)</option>
+            <option value="error">Simular fallo de red</option>
           </select>
         </div>
 
         <div className="op-contexto-item" style={{ justifyContent: "flex-end" }}>
-          <label>Datos de demostración</label>
-          <button
-            type="button"
-            className="op-btn op-btn-secundario"
-            onClick={handleRestaurarDemo}
-          >
-            Restaurar datos iniciales
-          </button>
+          <label>Sesión de usuario</label>
+          {tokenSesion ? (
+            <button
+              type="button"
+              className="op-btn op-btn-peligro"
+              onClick={handleCerrarSesion}
+            >
+              Cerrar sesión
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="op-btn op-btn-secundario"
+              onClick={() => {
+                reiniciarMemoriaSimulada();
+                setAviso({
+                  tipo: "info",
+                  texto: "Datos de prueba reiniciados. Inicie sesión para continuar."
+                });
+              }}
+            >
+              Restaurar datos iniciales
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Notificaciones y estados de carga/error */}
+      {/* Mensajes de estado, error o confirmación */}
       {cargando && (
         <div className="op-alerta op-alerta-info" role="status">
-          <span>Cargando proyectos, participaciones y viáticos del Módulo 05...</span>
+          <span>Cargando proyectos, asignaciones y viáticos...</span>
         </div>
       )}
 
@@ -367,253 +521,664 @@ export default function Operaciones({ modulo }) {
           role="alert"
         >
           <span>{aviso.texto}</span>
-          <div style={{ display: "flex", gap: "8px" }}>
-            {modoRed === "error" && (
-              <button
-                type="button"
-                className="op-btn op-btn-secundario"
-                onClick={() => {
-                  setModoRed("normal");
-                  sincronizarDatos("normal");
-                }}
-              >
-                Reintentar conexión
-              </button>
-            )}
-            <button
-              type="button"
-              className="op-btn op-btn-secundario"
-              onClick={() => setAviso(null)}
-              aria-label="Cerrar mensaje"
-            >
-              Cerrar
-            </button>
-          </div>
+          <button
+            type="button"
+            className="op-btn op-btn-secundario"
+            onClick={() => setAviso(null)}
+          >
+            Cerrar
+          </button>
         </div>
       )}
 
-      {/* Indicadores clave */}
-      <div className="op-kpis">
-        <div className="op-kpi-card">
-          <span className="op-kpi-etiqueta">Proyectos Activos</span>
-          <strong className="op-kpi-valor">
-            {proyectosActivosCount} / {proyectos.length}
-          </strong>
-          <span className="op-kpi-sub">Con control de fechas y cierre</span>
-        </div>
-        <div className="op-kpi-card">
-          <span className="op-kpi-etiqueta">Asignaciones Activas</span>
-          <strong className="op-kpi-valor">{asignacionesActivasCount}</strong>
-          <span className="op-kpi-sub">{asignaciones.length} participaciones totales</span>
-        </div>
-        <div className="op-kpi-card">
-          <span className="op-kpi-etiqueta">Viáticos Conciliados</span>
-          <strong className="op-kpi-valor">
-            {REGLAS_VIATICOS_VIGENTES.moneda} {totalViaticosVigentes.toFixed(2)}
-          </strong>
-          <span className="op-kpi-sub">{viaticosVigentes.length} registro(s) vigente(s)</span>
-        </div>
-        <div className="op-kpi-card">
-          <span className="op-kpi-etiqueta">Eventos Auditados</span>
-          <strong className="op-kpi-valor">{auditoria.length}</strong>
-          <span className="op-kpi-sub">Zona America/La_Paz</span>
-        </div>
-      </div>
+      {/* Si no hay sesión activa, mostrar inicio de sesión */}
+      {!tokenSesion ? (
+        <section
+          className="op-form-panel"
+          aria-labelledby="titulo-login-backend"
+        >
+          <h3 id="titulo-login-backend" style={{ marginTop: 0 }}>
+            Iniciar sesión para acceder a Proyectos y Viáticos
+          </h3>
+          <p className="op-ayuda" style={{ marginBottom: "14px" }}>
+            Ingrese sus credenciales para consultar y registrar operaciones. (En modo de prueba puede ingresar con <strong>superadmin</strong>, <strong>admin</strong> o <strong>encargado</strong>).
+          </p>
 
-      {/* Navegación por pestañas táctiles (>= 44x44px) */}
-      <div className="op-tabs" role="tablist" aria-label="Secciones de Proyectos y Viáticos">
-        <button
-          type="button"
-          role="tab"
-          className="op-tab-btn"
-          aria-selected={pestanaActiva === "proyectos"}
-          onClick={() => setPestanaActiva("proyectos")}
-        >
-          1. Proyectos ({proyectos.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className="op-tab-btn"
-          aria-selected={pestanaActiva === "asignaciones"}
-          onClick={() => setPestanaActiva("asignaciones")}
-        >
-          2. Asignaciones ({asignaciones.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className="op-tab-btn"
-          aria-selected={pestanaActiva === "viaticos"}
-          onClick={() => setPestanaActiva("viaticos")}
-        >
-          3. Viáticos ({viaticos.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className="op-tab-btn"
-          aria-selected={pestanaActiva === "totales"}
-          onClick={() => setPestanaActiva("totales")}
-        >
-          4. Totales, Reportes y Auditoría
-        </button>
-      </div>
+          <form onSubmit={handleIniciarSesion}>
+            <div className="op-form-grid">
+              <div className="op-campo">
+                <label className="op-label" htmlFor="login-usuario">
+                  Usuario *
+                </label>
+                <input
+                  id="login-usuario"
+                  type="text"
+                  className="op-input"
+                  value={credencialesLogin.usuario}
+                  onChange={(e) =>
+                    setCredencialesLogin((prev) => ({
+                      ...prev,
+                      usuario: e.target.value
+                    }))
+                  }
+                  required
+                />
+              </div>
 
-      {/* PESTAÑA 1: PROYECTOS */}
-      {pestanaActiva === "proyectos" && (
-        <div>
-          <div className="op-acciones-barra">
-            <h3 style={{ margin: 0 }}>Gestión de Proyectos Operativos</h3>
-            {!formProyectoAbierto && (
+              <div className="op-campo">
+                <label className="op-label" htmlFor="login-password">
+                  Contraseña *
+                </label>
+                <input
+                  id="login-password"
+                  type="password"
+                  className="op-input"
+                  value={credencialesLogin.password}
+                  onChange={(e) =>
+                    setCredencialesLogin((prev) => ({
+                      ...prev,
+                      password: e.target.value
+                    }))
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="op-card-acciones" style={{ marginTop: "16px" }}>
               <button
-                type="button"
+                type="submit"
                 className="op-btn op-btn-primario"
-                onClick={() => {
-                  setProyectoEditando(null);
-                  setFormProyectoAbierto(true);
-                }}
+                disabled={procesando}
               >
-                + Nuevo Proyecto
+                {procesando ? "Iniciando sesión..." : "Ingresar al Módulo 05"}
               </button>
-            )}
+            </div>
+          </form>
+        </section>
+      ) : (
+        <>
+          {/* KPIs */}
+          <div className="op-kpis">
+            <div className="op-kpi-card">
+              <span className="op-kpi-etiqueta">Proyectos Activos</span>
+              <strong className="op-kpi-valor">
+                {proyectosEnCursoCount} / {proyectos.length}
+              </strong>
+              <span className="op-kpi-sub">
+                Planificados y en curso
+              </span>
+            </div>
+            <div className="op-kpi-card">
+              <span className="op-kpi-etiqueta">Asignaciones Activas</span>
+              <strong className="op-kpi-valor">{asignacionesActivasCount}</strong>
+              <span className="op-kpi-sub">
+                {asignaciones.length} participaciones registradas
+              </span>
+            </div>
+            <div className="op-kpi-card">
+              <span className="op-kpi-etiqueta">Total Viáticos</span>
+              <strong className="op-kpi-valor">
+                {REGLAS_VIATICOS_VIGENTES.moneda} {totalViaticos.toFixed(2)}
+              </strong>
+              <span className="op-kpi-sub">
+                {viaticos.length} registros (Base máx. 12 Bs + adicionales)
+              </span>
+            </div>
+            <div className="op-kpi-card">
+              <span className="op-kpi-etiqueta">Rol de Usuario</span>
+              <strong className="op-kpi-valor">
+                {usuarioActual?.rol || "Admin"}
+              </strong>
+              <span className="op-kpi-sub">Sesión verificada</span>
+            </div>
           </div>
 
-          {formProyectoAbierto && (
-            <ProyectoForm
-              proyectoInicial={proyectoEditando}
-              proyectosExistentes={proyectos}
-              guardando={procesando}
-              alGuardar={handleGuardarProyecto}
-              alCancelar={() => {
-                setFormProyectoAbierto(false);
-                setProyectoEditando(null);
-              }}
-            />
-          )}
+          {/* Pestañas */}
+          <div
+            className="op-tabs"
+            role="tablist"
+            aria-label="Secciones de Proyectos y Viáticos"
+          >
+            <button
+              type="button"
+              role="tab"
+              className="op-tab-btn"
+              aria-selected={pestanaActiva === "proyectos"}
+              onClick={() => setPestanaActiva("proyectos")}
+            >
+              1. Proyectos ({proyectos.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="op-tab-btn"
+              aria-selected={pestanaActiva === "asignaciones"}
+              onClick={() => setPestanaActiva("asignaciones")}
+            >
+              2. Asignaciones ({asignaciones.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="op-tab-btn"
+              aria-selected={pestanaActiva === "viaticos"}
+              onClick={() => setPestanaActiva("viaticos")}
+            >
+              3. Viáticos ({viaticos.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="op-tab-btn"
+              aria-selected={pestanaActiva === "totales"}
+              onClick={() => setPestanaActiva("totales")}
+            >
+              4. Totales, Reportes y Auditoría
+            </button>
+          </div>
 
-          {/* Panel de confirmación de cierre de proyecto conservando participaciones */}
-          {proyectoPorCerrar && (
-            <section className="op-form-panel" aria-labelledby="titulo-cierre-pry">
-              <h3 id="titulo-cierre-pry" style={{ marginTop: 0 }}>
-                Cerrar proyecto: {proyectoPorCerrar.nombre}
-              </h3>
-              <p className="op-ayuda" style={{ marginBottom: "12px" }}>
-                Al cerrar el proyecto se conservarán todas las participaciones e historial de viáticos para reportes, y se bloqueará la creación de nuevas asignaciones o gastos.
-              </p>
-              <form onSubmit={handleConfirmarCierreProyecto}>
-                <div className="op-campo">
-                  <label className="op-label" htmlFor="motivo-cierre-input">
-                    Motivo del cierre administrativo *
-                  </label>
-                  <textarea
-                    id="motivo-cierre-input"
-                    className="op-textarea"
-                    value={motivoCierreProyecto}
-                    onChange={(e) => setMotivoCierreProyecto(e.target.value)}
-                    placeholder="Indique el acta o conclusión operativa del proyecto..."
-                    aria-invalid={Boolean(errorCierreProyecto)}
-                  />
-                  {errorCierreProyecto && (
-                    <p className="op-error-campo">{errorCierreProyecto}</p>
-                  )}
-                </div>
-                <div className="op-card-acciones" style={{ marginTop: "12px" }}>
-                  <button
-                    type="submit"
-                    className="op-btn op-btn-peligro"
-                    disabled={procesando}
-                  >
-                    Confirmar cierre conservando participaciones
-                  </button>
+          {/* PESTAÑA 1: PROYECTOS */}
+          {pestanaActiva === "proyectos" && (
+            <div>
+              <div className="op-acciones-barra">
+                <h3 style={{ margin: 0 }}>Proyectos</h3>
+                {!formProyectoAbierto && (
                   <button
                     type="button"
-                    className="op-btn op-btn-secundario"
+                    className="op-btn op-btn-primario"
                     onClick={() => {
-                      setProyectoPorCerrar(null);
-                      setMotivoCierreProyecto("");
-                      setErrorCierreProyecto("");
+                      setProyectoEditando(null);
+                      setFormProyectoAbierto(true);
                     }}
                   >
-                    Cancelar
+                    + Nuevo Proyecto
                   </button>
-                </div>
-              </form>
-            </section>
+                )}
+              </div>
+
+              {formProyectoAbierto && (
+                <ProyectoForm
+                  proyectoInicial={proyectoEditando}
+                  proyectosExistentes={proyectos}
+                  guardando={procesando}
+                  alGuardar={handleGuardarProyecto}
+                  alCancelar={() => {
+                    setFormProyectoAbierto(false);
+                    setProyectoEditando(null);
+                  }}
+                />
+              )}
+
+              {/* Confirmación de cierre de proyecto */}
+              {proyectoPorFinalizar && (
+                <section
+                  className="op-form-panel"
+                  aria-labelledby="titulo-cierre-pry"
+                >
+                  <h3 id="titulo-cierre-pry" style={{ marginTop: 0 }}>
+                    Cerrar proyecto: {proyectoPorFinalizar.nombre}
+                  </h3>
+                  <p className="op-ayuda" style={{ marginBottom: "14px" }}>
+                    Al cerrar el proyecto su estado pasará a <strong>Finalizado</strong> y se conservarán todas las participaciones registradas en el historial para consulta y reportes.
+                  </p>
+                  <div className="op-card-acciones">
+                    <button
+                      type="button"
+                      className="op-btn op-btn-peligro"
+                      disabled={procesando}
+                      onClick={handleConfirmarFinalizarProyecto}
+                    >
+                      {procesando
+                        ? "Cerrando proyecto..."
+                        : "Confirmar cierre del proyecto"}
+                    </button>
+                    <button
+                      type="button"
+                      className="op-btn op-btn-secundario"
+                      onClick={() => setProyectoPorFinalizar(null)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              <div className="op-lista-grid">
+                {proyectos.map((proyecto) => {
+                  const participacionesProyecto = asignaciones.filter(
+                    (a) => Number(a.idProyecto) === Number(proyecto.idProyecto)
+                  );
+                  const activasProyecto = participacionesProyecto.filter(
+                    (a) => a.activo
+                  );
+
+                  return (
+                    <article key={proyecto.idProyecto} className="op-card">
+                      <div className="op-card-header">
+                        <div>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "#5d705e",
+                              fontWeight: 700
+                            }}
+                          >
+                            {proyecto.codigo} · Versión {proyecto.version}
+                          </span>
+                          <h4 className="op-card-titulo">{proyecto.nombre}</h4>
+                        </div>
+                        <span
+                          className={`op-badge ${
+                            proyecto.estado === "En curso" ||
+                            proyecto.estado === "Planificado"
+                              ? "op-badge-activo"
+                              : proyecto.estado === "Pausado"
+                              ? "op-badge-pausado"
+                              : "op-badge-cerrado"
+                          }`}
+                        >
+                          {proyecto.estado}
+                        </span>
+                      </div>
+
+                      <p className="op-card-meta">{proyecto.descripcion}</p>
+                      <p className="op-card-meta">
+                        <strong>Cliente:</strong> {proyecto.cliente || "—"} ·{" "}
+                        <strong>Ubicación:</strong> {proyecto.ubicacion}
+                      </p>
+                      <p className="op-card-meta">
+                        <strong>Período:</strong> {proyecto.fechaInicio} al{" "}
+                        {proyecto.fechaFin || "Abierto"}
+                      </p>
+                      <p className="op-card-meta">
+                        <strong>Participaciones:</strong>{" "}
+                        {participacionesProyecto.length} registradas (
+                        {activasProyecto.length} activas)
+                      </p>
+
+                      {/* Vista previa del equipo asignado a este proyecto */}
+                      <div
+                        style={{
+                          background: "#f6f9f3",
+                          border: "1px solid #dce4d6",
+                          borderRadius: "8px",
+                          padding: "10px 12px",
+                          marginTop: "4px"
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            color: "#27483b",
+                            marginBottom: "6px"
+                          }}
+                        >
+                          Equipo asignado al proyecto:
+                        </div>
+                        {participacionesProyecto.length === 0 ? (
+                          <p
+                            className="op-ayuda"
+                            style={{ margin: 0, fontStyle: "italic" }}
+                          >
+                            Sin personal asignado todavía. Use «Asignar Personal» para vincular integrantes.
+                          </p>
+                        ) : (
+                          <ul
+                            style={{
+                              listStyle: "none",
+                              padding: 0,
+                              margin: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "8px"
+                            }}
+                          >
+                            {participacionesProyecto.map((part) => {
+                              const personaAsig = personal.find(
+                                (per) =>
+                                  Number(per.idPasante) ===
+                                  Number(part.idPasante)
+                              );
+                              return (
+                                <li
+                                  key={part.idAsignacion}
+                                  style={{
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: "6px",
+                                    paddingBottom: "6px",
+                                    borderBottom: "1px dashed #d5dfcf",
+                                    fontSize: "13px"
+                                  }}
+                                >
+                                  <div>
+                                    <strong>
+                                      {personaAsig
+                                        ? `${personaAsig.nombres} ${personaAsig.apellidos}`
+                                        : `Persona #${part.idPasante}`}
+                                    </strong>{" "}
+                                    <span style={{ color: "#4b5e4d" }}>
+                                      — {part.rol}
+                                    </span>
+                                    <div
+                                      style={{
+                                        fontSize: "11px",
+                                        color: "#647766"
+                                      }}
+                                    >
+                                      {personaAsig
+                                        ? `${personaAsig.tipoContrato} · `
+                                        : ""}
+                                      {part.fechaInicio} al{" "}
+                                      {part.fechaFin || "Abierto"}
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`op-badge ${
+                                      part.activo
+                                        ? "op-badge-activo"
+                                        : "op-badge-cerrado"
+                                    }`}
+                                    style={{ fontSize: "11px", padding: "3px 8px" }}
+                                  >
+                                    {part.activo ? "Activa" : "Histórica"}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div className="op-card-acciones">
+                        {proyecto.estado !== "Finalizado" && (
+                          <>
+                            <button
+                              type="button"
+                              className="op-btn op-btn-primario"
+                              onClick={() =>
+                                abrirNuevaAsignacionParaProyecto(
+                                  proyecto.idProyecto
+                                )
+                              }
+                            >
+                              Asignar Personal
+                            </button>
+                            <button
+                              type="button"
+                              className="op-btn op-btn-secundario"
+                              onClick={() => {
+                                setProyectoEditando(proyecto);
+                                setFormProyectoAbierto(true);
+                              }}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              className="op-btn op-btn-peligro"
+                              onClick={() => setProyectoPorFinalizar(proyecto)}
+                            >
+                              Cerrar Proyecto
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
-          <div className="op-lista-grid">
-            {proyectos.map((proyecto) => {
-              const participacionesProyecto = asignaciones.filter(
-                (a) => Number(a.idProyecto) === Number(proyecto.id)
-              );
-              const viaticosProyecto = viaticos.filter(
-                (v) => Number(v.idProyecto) === Number(proyecto.id) && v.estado !== "Baja"
-              );
-              const gastado = viaticosProyecto.reduce(
-                (acc, item) => acc + importeTotalViatico(item),
-                0
-              );
+          {/* PESTAÑA 2: ASIGNACIONES */}
+          {pestanaActiva === "asignaciones" && (
+            <div>
+              <div className="op-acciones-barra">
+                <h3 style={{ margin: 0 }}>Asignaciones del Equipo</h3>
+                {!formAsignacionAbierto && (
+                  <button
+                    type="button"
+                    className="op-btn op-btn-primario"
+                    onClick={() => {
+                      setAsignacionEditando(null);
+                      setProyectoPreseleccionado("");
+                      setFormAsignacionAbierto(true);
+                    }}
+                  >
+                    + Nueva Asignación
+                  </button>
+                )}
+              </div>
 
-              return (
-                <article key={proyecto.id} className="op-card">
-                  <div className="op-card-header">
-                    <div>
-                      <span style={{ fontSize: "12px", color: "#5d705e", fontWeight: 700 }}>
-                        {proyecto.codigo || `PRY-${proyecto.id}`}
-                      </span>
-                      <h4 className="op-card-titulo">{proyecto.nombre}</h4>
-                    </div>
-                    <span
-                      className={`op-badge ${
-                        proyecto.estado === "Activo"
-                          ? "op-badge-activo"
-                          : proyecto.estado === "Pausado"
-                          ? "op-badge-pausado"
-                          : "op-badge-cerrado"
-                      }`}
-                    >
-                      {proyecto.estado}
-                    </span>
-                  </div>
+              {formAsignacionAbierto && (
+                <AsignacionForm
+                  asignacionInicial={asignacionEditando}
+                  idProyectoPreseleccionado={proyectoPreseleccionado}
+                  proyectos={proyectos}
+                  personal={personal}
+                  asignacionesExistentes={asignaciones}
+                  guardando={procesando}
+                  alGuardar={handleGuardarAsignacion}
+                  alCancelar={() => {
+                    setFormAsignacionAbierto(false);
+                    setAsignacionEditando(null);
+                    setProyectoPreseleccionado("");
+                  }}
+                />
+              )}
 
-                  <p className="op-card-meta">{proyecto.descripcion}</p>
-                  <p className="op-card-meta">
-                    <strong>Ubicación:</strong> {proyecto.ubicacion || "Oficina Santiago II"}
-                  </p>
-                  <p className="op-card-meta">
-                    <strong>Período oficial:</strong> {proyecto.fechaInicio} al {proyecto.fechaFin}
-                  </p>
-                  <p className="op-card-meta">
-                    <strong>Participaciones:</strong> {participacionesProyecto.length} ·{" "}
-                    <strong>Viáticos ejecutados:</strong> Bs {gastado.toFixed(2)} / Bs{" "}
-                    {Number(proyecto.presupuestoViaticos || 0).toFixed(2)}
-                  </p>
-                  {proyecto.estado === "Cerrado" && proyecto.motivoCierre && (
-                    <p className="op-card-meta" style={{ color: "#4e5d50" }}>
-                      <strong>Acta de cierre ({proyecto.fechaCierre}):</strong>{" "}
-                      {proyecto.motivoCierre}
-                    </p>
-                  )}
+              <div className="op-lista-grid">
+                {asignaciones.map((asig) => {
+                  const pry = proyectos.find(
+                    (p) => Number(p.idProyecto) === Number(asig.idProyecto)
+                  );
+                  const per = personal.find(
+                    (p) => Number(p.idPasante) === Number(asig.idPasante)
+                  );
 
+                  return (
+                    <article key={asig.idAsignacion} className="op-card">
+                      <div className="op-card-header">
+                        <div>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "#5d705e",
+                              fontWeight: 700
+                            }}
+                          >
+                            Asignación #{asig.idAsignacion} · Versión {asig.version}
+                          </span>
+                          <h4 className="op-card-titulo">
+                            {per
+                              ? `${per.nombres} ${per.apellidos}`
+                              : `Persona #${asig.idPasante}`}
+                          </h4>
+                        </div>
+                        <div className="op-badges">
+                          {per && (
+                            <span
+                              className={`op-badge ${
+                                per.tipoContrato === "Pasante"
+                                  ? "op-badge-pasante"
+                                  : "op-badge-planta"
+                              }`}
+                            >
+                              {per.tipoContrato}
+                            </span>
+                          )}
+                          <span
+                            className={`op-badge ${
+                              asig.activo ? "op-badge-activo" : "op-badge-cerrado"
+                            }`}
+                          >
+                            {asig.activo ? "Activa" : "Finalizada"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="op-card-meta">
+                        <strong>Proyecto:</strong>{" "}
+                        {pry
+                          ? `${pry.codigo} · ${pry.nombre}`
+                          : `#${asig.idProyecto}`}
+                      </p>
+                      <p className="op-card-meta">
+                        <strong>Función / Rol:</strong> {asig.rol}
+                      </p>
+                      <p className="op-card-meta">
+                        <strong>Período:</strong> {asig.fechaInicio} al{" "}
+                        {asig.fechaFin || "Abierto"}
+                      </p>
+
+                      {asig.activo && pry?.estado !== "Finalizado" && (
+                        <div className="op-card-acciones">
+                          <button
+                            type="button"
+                            className="op-btn op-btn-secundario"
+                            onClick={() => {
+                              setAsignacionEditando(asig);
+                              setFormAsignacionAbierto(true);
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="op-btn op-btn-peligro"
+                            disabled={procesando}
+                            onClick={() => handleFinalizarAsignacion(asig)}
+                          >
+                            Finalizar participación
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* PESTAÑA 3: VIÁTICOS */}
+          {pestanaActiva === "viaticos" && (
+            <div>
+              <div className="op-acciones-barra">
+                <h3 style={{ margin: 0 }}>Viáticos y Gastos Adicionales</h3>
+                {!formViaticoAbierto && (
+                  <button
+                    type="button"
+                    className="op-btn op-btn-primario"
+                    onClick={() => {
+                      setViaticoEditando(null);
+                      setFormViaticoAbierto(true);
+                    }}
+                  >
+                    + Registrar Viático
+                  </button>
+                )}
+              </div>
+
+              {formViaticoAbierto && (
+                <ViaticoForm
+                  viaticoInicial={viaticoEditando}
+                  personal={personal}
+                  reglas={REGLAS_VIATICOS_VIGENTES}
+                  guardando={procesando}
+                  alGuardar={handleGuardarViatico}
+                  alCancelar={() => {
+                    setFormViaticoAbierto(false);
+                    setViaticoEditando(null);
+                  }}
+                />
+              )}
+
+              {viaticoPorEliminar && (
+                <section
+                  className="op-form-panel"
+                  aria-labelledby="titulo-eliminar-viatico"
+                >
+                  <h3 id="titulo-eliminar-viatico" style={{ marginTop: 0 }}>
+                    Eliminar Viático #{viaticoPorEliminar.idViatico}
+                  </h3>
+                  <p className="op-ayuda" style={{ marginBottom: "14px" }}>
+                    Esta acción eliminará el registro de viático en el servidor (requiere rol Administrador).
+                  </p>
                   <div className="op-card-acciones">
-                    {proyecto.estado === "Activo" && (
-                      <button
-                        type="button"
-                        className="op-btn op-btn-primario"
-                        onClick={() => abrirNuevaAsignacionParaProyecto(proyecto.id)}
-                      >
-                        Asignar Personal
-                      </button>
-                    )}
-                    {proyecto.estado !== "Cerrado" && (
-                      <>
+                    <button
+                      type="button"
+                      className="op-btn op-btn-peligro"
+                      disabled={procesando}
+                      onClick={handleConfirmarEliminarViatico}
+                    >
+                      {procesando
+                        ? "Eliminando..."
+                        : "Confirmar eliminación"}
+                    </button>
+                    <button
+                      type="button"
+                      className="op-btn op-btn-secundario"
+                      onClick={() => setViaticoPorEliminar(null)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              <div className="op-lista-grid">
+                {viaticos.map((v) => {
+                  const per = personal.find(
+                    (p) => Number(p.idPasante) === Number(v.idPasante)
+                  );
+                  const total = importeTotalViatico(v);
+
+                  return (
+                    <article key={v.idViatico} className="op-card">
+                      <div className="op-card-header">
+                        <div>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "#5d705e",
+                              fontWeight: 700
+                            }}
+                          >
+                            Viático #{v.idViatico} · {v.fecha}
+                          </span>
+                          <h4 className="op-card-titulo">
+                            Bs {total.toFixed(2)} — {v.concepto}
+                          </h4>
+                        </div>
+                        <span className="op-badge op-badge-activo">
+                          Base Bs {Number(v.monto).toFixed(2)}
+                        </span>
+                      </div>
+
+                      <p className="op-card-meta">
+                        <strong>Beneficiario:</strong>{" "}
+                        {per
+                          ? `[${per.codigo}] ${per.nombres} ${per.apellidos} (${per.tipoContrato})`
+                          : `Persona #${v.idPasante}`}
+                      </p>
+                      <p className="op-card-meta">
+                        <strong>Desglose:</strong> Monto base: Bs{" "}
+                        {Number(v.monto).toFixed(2)} (máx. 12.00 Bs) · Gasto adicional: Bs{" "}
+                        {Number(v.gastoExtra || 0).toFixed(2)}
+                      </p>
+
+                      <div className="op-card-acciones">
                         <button
                           type="button"
                           className="op-btn op-btn-secundario"
                           onClick={() => {
-                            setProyectoEditando(proyecto);
-                            setFormProyectoAbierto(true);
+                            setViaticoEditando(v);
+                            setFormViaticoAbierto(true);
                           }}
                         >
                           Editar
@@ -621,323 +1186,33 @@ export default function Operaciones({ modulo }) {
                         <button
                           type="button"
                           className="op-btn op-btn-peligro"
-                          onClick={() => {
-                            setProyectoPorCerrar(proyecto);
-                            setMotivoCierreProyecto("");
-                            setErrorCierreProyecto("");
-                          }}
+                          onClick={() => setViaticoPorEliminar(v)}
                         >
-                          Cerrar Proyecto
+                          Eliminar
                         </button>
-                      </>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* PESTAÑA 2: ASIGNACIONES */}
-      {pestanaActiva === "asignaciones" && (
-        <div>
-          <div className="op-acciones-barra">
-            <h3 style={{ margin: 0 }}>
-              Asignaciones del Equipo (Con prevención de duplicados activos)
-            </h3>
-            {!formAsignacionAbierto && (
-              <button
-                type="button"
-                className="op-btn op-btn-primario"
-                onClick={() => {
-                  setAsignacionEditando(null);
-                  setProyectoPreseleccionado("");
-                  setFormAsignacionAbierto(true);
-                }}
-              >
-                + Nueva Asignación
-              </button>
-            )}
-          </div>
-
-          {formAsignacionAbierto && (
-            <AsignacionForm
-              asignacionInicial={asignacionEditando}
-              idProyectoPreseleccionado={proyectoPreseleccionado}
-              proyectos={proyectos}
-              personal={personal}
-              asignacionesExistentes={asignaciones}
-              guardando={procesando}
-              alGuardar={handleGuardarAsignacion}
-              alCancelar={() => {
-                setFormAsignacionAbierto(false);
-                setAsignacionEditando(null);
-                setProyectoPreseleccionado("");
-              }}
-            />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
-          <div className="op-lista-grid">
-            {asignaciones.map((asig) => {
-              const pry = proyectos.find((p) => Number(p.id) === Number(asig.idProyecto));
-              const per = personal.find((p) => Number(p.id) === Number(asig.idPersonal));
-
-              return (
-                <article key={asig.id} className="op-card">
-                  <div className="op-card-header">
-                    <div>
-                      <span style={{ fontSize: "12px", color: "#5d705e", fontWeight: 700 }}>
-                        Asignación #{asig.id}
-                      </span>
-                      <h4 className="op-card-titulo">
-                        {per ? `${per.nombres} ${per.apellidos}` : `Persona #${asig.idPersonal}`}
-                      </h4>
-                    </div>
-                    <div className="op-badges">
-                      {per && (
-                        <span
-                          className={`op-badge ${
-                            per.tipo === "Pasante" ? "op-badge-pasante" : "op-badge-planta"
-                          }`}
-                        >
-                          {per.tipo}
-                        </span>
-                      )}
-                      <span
-                        className={`op-badge ${
-                          asig.estado === "Activa" ? "op-badge-activo" : "op-badge-cerrado"
-                        }`}
-                      >
-                        {asig.estado}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="op-card-meta">
-                    <strong>Proyecto:</strong> {pry ? pry.nombre : `Proyecto #${asig.idProyecto}`}{" "}
-                    {pry ? `(${pry.fechaInicio} al ${pry.fechaFin})` : ""}
-                  </p>
-                  <p className="op-card-meta">
-                    <strong>Función desempeñada:</strong> {asig.funcion}
-                  </p>
-                  <p className="op-card-meta">
-                    <strong>Período asignado:</strong> {asig.fechaInicio} al {asig.fechaFin}
-                  </p>
-
-                  {asig.estado === "Activa" && pry?.estado !== "Cerrado" && (
-                    <div className="op-card-acciones">
-                      <button
-                        type="button"
-                        className="op-btn op-btn-secundario"
-                        onClick={() => {
-                          setAsignacionEditando(asig);
-                          setFormAsignacionAbierto(true);
-                        }}
-                      >
-                        Editar período / función
-                      </button>
-                      <button
-                        type="button"
-                        className="op-btn op-btn-peligro"
-                        onClick={() => handleFinalizarAsignacion(asig.id)}
-                      >
-                        Finalizar participación
-                      </button>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* PESTAÑA 3: VIÁTICOS */}
-      {pestanaActiva === "viaticos" && (
-        <div>
-          <div className="op-acciones-barra">
-            <h3 style={{ margin: 0 }}>
-              Control de Viáticos y Gastos Adicionales
-            </h3>
-            {!formViaticoAbierto && (
-              <button
-                type="button"
-                className="op-btn op-btn-primario"
-                onClick={() => {
-                  setViaticoEditando(null);
-                  setFormViaticoAbierto(true);
-                }}
-              >
-                + Registrar Viático
-              </button>
-            )}
-          </div>
-
-          {formViaticoAbierto && (
-            <ViaticoForm
-              viaticoInicial={viaticoEditando}
+          {/* PESTAÑA 4: TOTALES, REPORTES Y AUDITORÍA */}
+          {pestanaActiva === "totales" && (
+            <TotalesReportesPanel
               proyectos={proyectos}
               personal={personal}
               asignaciones={asignaciones}
-              reglas={REGLAS_VIATICOS_VIGENTES}
-              guardando={procesando}
-              alGuardar={handleGuardarViatico}
-              alCancelar={() => {
-                setFormViaticoAbierto(false);
-                setViaticoEditando(null);
-              }}
+              viaticos={viaticos}
+              auditoria={auditoria}
+              rolActual={usuarioActual?.rol || "SuperAdmin"}
             />
           )}
-
-          {/* Panel de confirmación para baja autorizada de viático */}
-          {viaticoPorDarDeBaja && (
-            <section className="op-form-panel" aria-labelledby="titulo-baja-viatico">
-              <h3 id="titulo-baja-viatico" style={{ marginTop: 0 }}>
-                Baja autorizada del Viático #{viaticoPorDarDeBaja.id}
-              </h3>
-              <p className="op-ayuda" style={{ marginBottom: "12px" }}>
-                Rol actual: <strong>{rolUsuario.toUpperCase()}</strong>. Solo el rol Administrador puede autorizar la baja de un viático registrado, conservando trazabilidad en auditoría.
-              </p>
-              <form onSubmit={handleConfirmarBajaViatico}>
-                <div className="op-campo">
-                  <label className="op-label" htmlFor="motivo-baja-viatico-input">
-                    Motivo de la baja autorizada *
-                  </label>
-                  <textarea
-                    id="motivo-baja-viatico-input"
-                    className="op-textarea"
-                    value={motivoBajaViatico}
-                    onChange={(e) => setMotivoBajaViatico(e.target.value)}
-                    placeholder="Ej. Comprobante anulado o duplicado en rendición..."
-                    aria-invalid={Boolean(errorBajaViatico)}
-                  />
-                  {errorBajaViatico && (
-                    <p className="op-error-campo">{errorBajaViatico}</p>
-                  )}
-                </div>
-                <div className="op-card-acciones" style={{ marginTop: "12px" }}>
-                  <button
-                    type="submit"
-                    className="op-btn op-btn-peligro"
-                    disabled={procesando}
-                  >
-                    Confirmar baja de viático
-                  </button>
-                  <button
-                    type="button"
-                    className="op-btn op-btn-secundario"
-                    onClick={() => {
-                      setViaticoPorDarDeBaja(null);
-                      setMotivoBajaViatico("");
-                      setErrorBajaViatico("");
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-
-          <div className="op-lista-grid">
-            {viaticos.map((v) => {
-              const pry = proyectos.find((p) => Number(p.id) === Number(v.idProyecto));
-              const per = personal.find((p) => Number(p.id) === Number(v.idPersonal));
-              const total = importeTotalViatico(v);
-
-              return (
-                <article key={v.id} className="op-card">
-                  <div className="op-card-header">
-                    <div>
-                      <span style={{ fontSize: "12px", color: "#5d705e", fontWeight: 700 }}>
-                        Viático #{v.id} · {v.fecha}
-                      </span>
-                      <h4 className="op-card-titulo">
-                        {v.categoria} — Bs {total.toFixed(2)}
-                      </h4>
-                    </div>
-                    <span
-                      className={`op-badge ${
-                        v.estado === "Vigente" ? "op-badge-activo" : "op-badge-baja"
-                      }`}
-                    >
-                      {v.estado}
-                    </span>
-                  </div>
-
-                  <p className="op-card-meta">
-                    <strong>Proyecto:</strong> {pry ? pry.nombre : `Proyecto #${v.idProyecto}`}
-                  </p>
-                  <p className="op-card-meta">
-                    <strong>Beneficiario:</strong>{" "}
-                    {per ? `${per.nombres} ${per.apellidos} (${per.tipo})` : `Persona #${v.idPersonal}`}
-                  </p>
-                  <p className="op-card-meta">
-                    <strong>Desglose:</strong> Base Bs {Number(v.monto).toFixed(2)}
-                    {v.esGastoAdicional
-                      ? ` + Adicional Bs ${Number(v.montoAdicional || 0).toFixed(2)}`
-                      : " (sin gasto adicional)"}
-                  </p>
-                  <p className="op-card-meta">
-                    <strong>Concepto:</strong> {v.descripcion}{" "}
-                    {v.comprobante ? `· Comprobante: ${v.comprobante}` : ""}
-                  </p>
-                  {v.esGastoAdicional && v.justificacionAdicional && (
-                    <p className="op-card-meta">
-                      <strong>Justificación adicional:</strong> {v.justificacionAdicional}
-                    </p>
-                  )}
-                  {v.estado === "Baja" && v.motivoBaja && (
-                    <p className="op-card-meta" style={{ color: "#9e1c1c" }}>
-                      <strong>Baja auditada ({v.fechaBaja}):</strong> {v.motivoBaja}
-                    </p>
-                  )}
-
-                  {v.estado === "Vigente" && pry?.estado !== "Cerrado" && (
-                    <div className="op-card-acciones">
-                      <button
-                        type="button"
-                        className="op-btn op-btn-secundario"
-                        onClick={() => {
-                          setViaticoEditando(v);
-                          setFormViaticoAbierto(true);
-                        }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="op-btn op-btn-peligro"
-                        onClick={() => {
-                          setViaticoPorDarDeBaja(v);
-                          setMotivoBajaViatico("");
-                          setErrorBajaViatico("");
-                        }}
-                      >
-                        Dar de baja
-                      </button>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </div>
+        </>
       )}
 
-      {/* PESTAÑA 4: TOTALES, ENLACE CON REPORTES Y AUDITORÍA */}
-      {pestanaActiva === "totales" && (
-        <TotalesReportesPanel
-          proyectos={proyectos}
-          personal={personal}
-          asignaciones={asignaciones}
-          viaticos={viaticos}
-          auditoria={auditoria}
-        />
-      )}
-
-      {/* Criterio de aceptación oficial visible al pie del módulo */}
+      {/* Criterio de aceptación oficial */}
       <div className="aceptacion" style={{ marginTop: "28px" }}>
         <strong>Criterio de aceptación (Módulo 05)</strong>
         <p>
@@ -946,7 +1221,7 @@ export default function Operaciones({ modulo }) {
         </p>
       </div>
       <p className="ruta">
-        Código del módulo: src/modules/{modulo?.id || "operaciones"}/ · API: api/operaciones.js
+        Código del módulo: src/modules/{modulo?.id || "operaciones"}/
       </p>
     </section>
   );

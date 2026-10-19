@@ -13,36 +13,40 @@ export default function AsignacionForm({
   alGuardar,
   alCancelar
 }) {
-  const esEdicion = Boolean(asignacionInicial?.id);
+  const esEdicion = Boolean(asignacionInicial?.idAsignacion);
   const proyectoDefault = proyectos.find(
-    (p) => Number(p.id) === Number(asignacionInicial?.idProyecto || idProyectoPreseleccionado)
+    (p) =>
+      Number(p.idProyecto) ===
+      Number(asignacionInicial?.idProyecto || idProyectoPreseleccionado)
   );
 
   const [formData, setFormData] = useState({
-    id: asignacionInicial?.id || null,
+    idAsignacion: asignacionInicial?.idAsignacion ?? 0,
     idProyecto: asignacionInicial?.idProyecto || idProyectoPreseleccionado || "",
-    idPersonal: asignacionInicial?.idPersonal || "",
-    funcion: asignacionInicial?.funcion || "",
-    fechaInicio: asignacionInicial?.fechaInicio || proyectoDefault?.fechaInicio || "",
-    fechaFin: asignacionInicial?.fechaFin || proyectoDefault?.fechaFin || ""
+    idPasante: asignacionInicial?.idPasante || "",
+    rol: asignacionInicial?.rol || "",
+    fechaInicio:
+      asignacionInicial?.fechaInicio || proyectoDefault?.fechaInicio || "",
+    fechaFin: asignacionInicial?.fechaFin || proyectoDefault?.fechaFin || "",
+    activo: asignacionInicial?.activo !== undefined ? asignacionInicial.activo : true,
+    version: asignacionInicial?.version ?? 0
   });
 
   const [errores, setErrores] = useState({});
 
   const proyectoSeleccionado = proyectos.find(
-    (p) => Number(p.id) === Number(formData.idProyecto)
+    (p) => Number(p.idProyecto) === Number(formData.idProyecto)
   );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
       const siguiente = { ...prev, [name]: value };
-      // Si cambia el proyecto y no hay fechas aún, autocompletar con el rango del proyecto
       if (name === "idProyecto" && value) {
-        const pry = proyectos.find((p) => Number(p.id) === Number(value));
+        const pry = proyectos.find((p) => Number(p.idProyecto) === Number(value));
         if (pry) {
           siguiente.fechaInicio = pry.fechaInicio;
-          siguiente.fechaFin = pry.fechaFin;
+          siguiente.fechaFin = pry.fechaFin || "";
         }
       }
       return siguiente;
@@ -56,7 +60,7 @@ export default function AsignacionForm({
       formData,
       proyectos,
       asignacionesExistentes,
-      formData.id
+      formData.idAsignacion
     );
 
     if (!resultado.valido) {
@@ -64,25 +68,34 @@ export default function AsignacionForm({
       return;
     }
 
-    alGuardar(formData);
+    alGuardar(resultado.payload);
   };
 
   const proyectosDisponibles = proyectos.filter(
-    (p) => p.estado === "Activo" || Number(p.id) === Number(formData.idProyecto)
+    (p) =>
+      p.estado !== "Finalizado" ||
+      Number(p.idProyecto) === Number(formData.idProyecto)
   );
 
   return (
     <section className="op-form-panel" aria-labelledby="titulo-form-asignacion">
-      <h3 id="titulo-form-asignacion" style={{ marginTop: 0, marginBottom: "14px" }}>
-        {esEdicion ? "Editar Asignación de Equipo" : "Nueva Asignación de Personal"}
-      </h3>
+      <div className="op-card-header" style={{ marginBottom: "12px" }}>
+        <h3 id="titulo-form-asignacion" style={{ margin: 0 }}>
+          {esEdicion
+            ? `Editar Asignación #${asignacionInicial.idAsignacion}`
+            : "Nueva Asignación de Personal"}
+        </h3>
+        {esEdicion && (
+          <span className="op-badge">Versión {formData.version}</span>
+        )}
+      </div>
 
       {proyectoSeleccionado && (
         <div className="op-alerta op-alerta-info" style={{ marginBottom: "16px" }}>
           <div>
             <strong>Vigencia del proyecto «{proyectoSeleccionado.nombre}»:</strong>{" "}
             del <strong>{proyectoSeleccionado.fechaInicio}</strong> al{" "}
-            <strong>{proyectoSeleccionado.fechaFin}</strong>. Las fechas de asignación deben estar dentro de este período.
+            <strong>{proyectoSeleccionado.fechaFin || "Abierto"}</strong>. Las fechas de asignación deben estar dentro de este período.
           </div>
         </div>
       )}
@@ -91,7 +104,7 @@ export default function AsignacionForm({
         <div className="op-form-grid">
           <div className="op-campo">
             <label className="op-label" htmlFor="asig-proyecto">
-              Proyecto activo *
+              Proyecto *
             </label>
             <select
               id="asig-proyecto"
@@ -103,56 +116,60 @@ export default function AsignacionForm({
             >
               <option value="">Seleccione un proyecto...</option>
               {proyectosDisponibles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.codigo ? `${p.codigo} · ` : ""}{p.nombre} ({p.fechaInicio} a {p.fechaFin})
+                <option key={p.idProyecto} value={p.idProyecto}>
+                  {p.codigo} · {p.nombre} ({p.estado})
                 </option>
               ))}
             </select>
-            {errores.idProyecto && <p className="op-error-campo">{errores.idProyecto}</p>}
+            {errores.idProyecto && (
+              <p className="op-error-campo">{errores.idProyecto}</p>
+            )}
           </div>
 
           <div className="op-campo">
-            <label className="op-label" htmlFor="asig-personal">
-              Personal (Planta / Pasante) *
+            <label className="op-label" htmlFor="asig-pasante">
+              Personal *
             </label>
             <select
-              id="asig-personal"
-              name="idPersonal"
+              id="asig-pasante"
+              name="idPasante"
               className="op-select"
-              value={formData.idPersonal}
+              value={formData.idPasante}
               onChange={handleChange}
-              aria-invalid={Boolean(errores.idPersonal || errores.duplicado)}
+              aria-invalid={Boolean(errores.idPasante || errores.duplicado)}
             >
               <option value="">Seleccione personal...</option>
               {personal.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombres} {p.apellidos} ({p.tipo})
+                <option key={p.idPasante} value={p.idPasante}>
+                  [{p.codigo}] {p.nombres} {p.apellidos} ({p.tipoContrato})
                 </option>
               ))}
             </select>
-            {errores.idPersonal && <p className="op-error-campo">{errores.idPersonal}</p>}
+            {errores.idPasante && (
+              <p className="op-error-campo">{errores.idPasante}</p>
+            )}
           </div>
 
           <div className="op-campo op-campo-completo">
-            <label className="op-label" htmlFor="asig-funcion">
-              Función / Rol en el proyecto *
+            <label className="op-label" htmlFor="asig-rol">
+              Rol / Función en el proyecto *
             </label>
             <input
-              id="asig-funcion"
+              id="asig-rol"
               type="text"
-              name="funcion"
+              name="rol"
               className="op-input"
-              value={formData.funcion}
+              value={formData.rol}
               onChange={handleChange}
               placeholder="Ej. Técnico en redes, Supervisor de mantenimiento..."
-              aria-invalid={Boolean(errores.funcion)}
+              aria-invalid={Boolean(errores.rol)}
             />
-            {errores.funcion && <p className="op-error-campo">{errores.funcion}</p>}
+            {errores.rol && <p className="op-error-campo">{errores.rol}</p>}
           </div>
 
           <div className="op-campo">
             <label className="op-label" htmlFor="asig-fecha-inicio">
-              Fecha de inicio de participación *
+              Fecha de inicio *
             </label>
             <input
               id="asig-fecha-inicio"
@@ -165,12 +182,14 @@ export default function AsignacionForm({
               onChange={handleChange}
               aria-invalid={Boolean(errores.fechaInicio || errores.periodo)}
             />
-            {errores.fechaInicio && <p className="op-error-campo">{errores.fechaInicio}</p>}
+            {errores.fechaInicio && (
+              <p className="op-error-campo">{errores.fechaInicio}</p>
+            )}
           </div>
 
           <div className="op-campo">
             <label className="op-label" htmlFor="asig-fecha-fin">
-              Fecha de fin de participación *
+              Fecha de finalización (opcional)
             </label>
             <input
               id="asig-fecha-fin"
@@ -179,29 +198,45 @@ export default function AsignacionForm({
               className="op-input"
               min={proyectoSeleccionado?.fechaInicio || undefined}
               max={proyectoSeleccionado?.fechaFin || undefined}
-              value={formData.fechaFin}
+              value={formData.fechaFin || ""}
               onChange={handleChange}
               aria-invalid={Boolean(errores.fechaFin || errores.periodo)}
             />
-            {errores.fechaFin && <p className="op-error-campo">{errores.fechaFin}</p>}
+            {errores.fechaFin && (
+              <p className="op-error-campo">{errores.fechaFin}</p>
+            )}
           </div>
         </div>
 
         {errores.periodo && (
-          <div className="op-alerta op-alerta-error" style={{ marginTop: "14px", marginBottom: 0 }}>
+          <div
+            className="op-alerta op-alerta-error"
+            style={{ marginTop: "14px", marginBottom: 0 }}
+          >
             <span>{errores.periodo}</span>
           </div>
         )}
 
         {errores.duplicado && (
-          <div className="op-alerta op-alerta-error" style={{ marginTop: "14px", marginBottom: 0 }}>
+          <div
+            className="op-alerta op-alerta-error"
+            style={{ marginTop: "14px", marginBottom: 0 }}
+          >
             <span>{errores.duplicado}</span>
           </div>
         )}
 
         <div className="op-card-acciones" style={{ marginTop: "16px" }}>
-          <button type="submit" className="op-btn op-btn-primario" disabled={guardando}>
-            {guardando ? "Guardando asignación..." : esEdicion ? "Actualizar Asignación" : "Guardar Asignación"}
+          <button
+            type="submit"
+            className="op-btn op-btn-primario"
+            disabled={guardando}
+          >
+            {guardando
+              ? "Guardando asignación..."
+              : esEdicion
+              ? "Actualizar Asignación"
+              : "Guardar Asignación"}
           </button>
           <button
             type="button"

@@ -1,12 +1,12 @@
 // src/modules/operaciones/utils/reglasOperaciones.js
-import { REGLAS_VIATICOS_VIGENTES } from "../mocks/datosPrueba.js";
+import { ESTADOS_PROYECTO, REGLAS_VIATICOS_VIGENTES } from "../mocks/datosPrueba.js";
 
 /**
- * Obtiene marca de tiempo actual formateada en zona horaria America/La_Paz.
+ * Obtiene fecha y hora en zona horaria America/La_Paz.
  */
 export function obtenerFechaHoraLaPaz(fechaBase = new Date()) {
   try {
-    const partes = new Intl.DateTimeFormat("sv-SE", {
+    return new Intl.DateTimeFormat("sv-SE", {
       timeZone: "America/La_Paz",
       year: "numeric",
       month: "2-digit",
@@ -16,164 +16,150 @@ export function obtenerFechaHoraLaPaz(fechaBase = new Date()) {
       second: "2-digit",
       hour12: false
     }).format(fechaBase);
-    return partes;
   } catch {
     return fechaBase.toISOString().replace("T", " ").slice(0, 19);
   }
 }
 
-/**
- * Comprueba si dos rangos de fechas [inicioA, finA] y [inicioB, finB] se solapan.
- */
-export function rangosFechasSeSolapan(inicioA, finA, inicioB, finB) {
-  if (!inicioA || !finA || !inicioB || !finB) return false;
-  return inicioA <= finB && finA >= inicioB;
+export function hoyBolivia(fechaBase = new Date()) {
+  return obtenerFechaHoraLaPaz(fechaBase).slice(0, 10);
 }
 
 /**
- * 1. Validación de alta y edición de proyectos.
+ * Comprueba si dos rangos de fechas [inicioA, finA] y [inicioB, finB] se solapan.
+ * Si fechaFin es null (abierta), se considera vigente hacia adelante ('9999-12-31').
+ */
+export function rangosFechasSeSolapan(inicioA, finA, inicioB, finB) {
+  if (!inicioA || !inicioB) return false;
+  const finRealA = finA || "9999-12-31";
+  const finRealB = finB || "9999-12-31";
+  return inicioA <= finRealB && finRealA >= inicioB;
+}
+
+/**
+ * Construye el objeto exacto para la operación `proyectos.guardar` de /api/backend:
+ * { idProyecto: 0, codigo, nombre, cliente: '', ubicacion, descripcion, estado: 'Planificado', fechaInicio, fechaFin: null, version: 0 }
+ */
+export function construirPayloadProyecto(datos = {}) {
+  return {
+    idProyecto: Number(datos.idProyecto ?? datos.id ?? 0),
+    codigo: String(datos.codigo || "").trim(),
+    nombre: String(datos.nombre || "").trim(),
+    cliente: String(datos.cliente ?? "").trim(),
+    ubicacion: String(datos.ubicacion || "").trim(),
+    descripcion: String(datos.descripcion || "").trim(),
+    estado: datos.estado || "Planificado",
+    fechaInicio: String(datos.fechaInicio || "").trim(),
+    fechaFin: datos.fechaFin ? String(datos.fechaFin).trim() : null,
+    version: Number(datos.version ?? 0)
+  };
+}
+
+/**
+ * 1. Validación de alta y edición de proyectos conforme al esquema C#.
  */
 export function validarProyecto(datosProyecto, proyectosExistentes = [], idEdicion = null) {
   const errores = {};
-  const nombre = String(datosProyecto?.nombre || "").trim();
-  const descripcion = String(datosProyecto?.descripcion || "").trim();
-  const ubicacion = String(datosProyecto?.ubicacion || "").trim();
-  const fechaInicio = String(datosProyecto?.fechaInicio || "").trim();
-  const fechaFin = String(datosProyecto?.fechaFin || "").trim();
-  const estado = datosProyecto?.estado || "Activo";
-  const presupuesto = Number(datosProyecto?.presupuestoViaticos ?? 0);
+  const payload = construirPayloadProyecto(datosProyecto);
+  const idActual = Number(idEdicion ?? payload.idProyecto ?? 0);
 
-  if (!nombre || nombre.length < 3) {
-    errores.nombre = "El nombre del proyecto debe tener al menos 3 caracteres.";
+  if (!payload.codigo || payload.codigo.length < 2) {
+    errores.codigo = "El código del proyecto es obligatorio (ej. PRY-2026-04).";
   } else {
-    const duplicadoNombre = proyectosExistentes.some(
+    const codigoDuplicado = proyectosExistentes.some(
       (p) =>
-        Number(p.id) !== Number(idEdicion) &&
-        p.nombre.trim().toLowerCase() === nombre.toLowerCase()
+        Number(p.idProyecto ?? p.id) !== idActual &&
+        String(p.codigo || "").trim().toLowerCase() === payload.codigo.toLowerCase()
     );
-    if (duplicadoNombre) {
-      errores.nombre = "Ya existe un proyecto registrado con este nombre.";
+    if (codigoDuplicado) {
+      errores.codigo = "Ya existe otro proyecto registrado con este código.";
     }
   }
 
-  if (!descripcion) {
-    errores.descripcion = "Ingrese una descripción breve del alcance del proyecto.";
+  if (!payload.nombre || payload.nombre.length < 3) {
+    errores.nombre = "El nombre del proyecto debe tener al menos 3 caracteres.";
   }
 
-  if (!ubicacion) {
+  if (!payload.ubicacion) {
     errores.ubicacion = "Indique la ubicación o área operativa del proyecto.";
   }
 
-  if (!fechaInicio) {
+  if (!payload.descripcion) {
+    errores.descripcion = "Ingrese la descripción del proyecto.";
+  }
+
+  if (!payload.fechaInicio) {
     errores.fechaInicio = "La fecha de inicio del proyecto es obligatoria.";
   }
 
-  if (!fechaFin) {
-    errores.fechaFin = "La fecha de finalización del proyecto es obligatoria.";
+  if (payload.fechaInicio && payload.fechaFin && payload.fechaInicio > payload.fechaFin) {
+    errores.fechaFin = "La fecha de fin no puede ser anterior a la fecha de inicio.";
   }
 
-  if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
-    errores.fechaFin = "La fecha de fin no puede ser anterior a la fecha de inicio del proyecto.";
-  }
-
-  if (!["Activo", "Pausado", "Cerrado"].includes(estado)) {
-    errores.estado = "El estado del proyecto debe ser Activo, Pausado o Cerrado.";
-  }
-
-  if (Number.isNaN(presupuesto) || presupuesto < 0) {
-    errores.presupuestoViaticos = "El presupuesto referencial de viáticos debe ser un monto válido mayor o igual a 0.";
+  if (!ESTADOS_PROYECTO.includes(payload.estado)) {
+    errores.estado = `El estado debe ser uno de: ${ESTADOS_PROYECTO.join(", ")}.`;
   }
 
   return {
     valido: Object.keys(errores).length === 0,
-    errores
+    errores,
+    payload
   };
 }
 
 /**
- * 2. Cierre de proyectos conservando participaciones.
- * Exige rol administrador y un motivo de cierre.
+ * 2. Para cerrar un proyecto: leerlo, conservar su versión y guardar `estado: 'Finalizado'`.
+ * C# cierra sus asignaciones conservando el historial.
  */
-export function ejecutarCierreProyecto({
-  idProyecto,
-  motivoCierre,
-  rolUsuario = "operador",
-  proyectos = [],
-  asignaciones = []
-}) {
-  if (rolUsuario !== "administrador") {
-    return {
-      ok: false,
-      codigo: 403,
-      mensaje: "Acción no autorizada: solo el rol Administrador puede cerrar un proyecto."
-    };
+export function prepararCierreProyecto(proyectoActual) {
+  if (!proyectoActual || !Number(proyectoActual.idProyecto ?? proyectoActual.id)) {
+    throw new Error("Debe proporcionar un proyecto válido leído previamente.");
   }
-
-  const proyecto = proyectos.find((p) => Number(p.id) === Number(idProyecto));
-  if (!proyecto) {
-    return {
-      ok: false,
-      codigo: 404,
-      mensaje: "El proyecto indicado no existe."
-    };
+  if (proyectoActual.estado === "Finalizado") {
+    throw new Error("El proyecto ya se encuentra en estado Finalizado.");
   }
-
-  if (proyecto.estado === "Cerrado") {
-    return {
-      ok: false,
-      codigo: 400,
-      mensaje: "El proyecto ya se encuentra cerrado."
-    };
-  }
-
-  const motivoLimpio = String(motivoCierre || "").trim();
-  if (motivoLimpio.length < 5) {
-    return {
-      ok: false,
-      codigo: 400,
-      mensaje: "Debe registrar un motivo de cierre válido (mínimo 5 caracteres)."
-    };
-  }
-
-  const fechaCierre = obtenerFechaHoraLaPaz().slice(0, 10);
-  let participacionesConservadas = 0;
-
-  const proyectosActualizados = proyectos.map((p) =>
-    Number(p.id) === Number(idProyecto)
-      ? {
-          ...p,
-          estado: "Cerrado",
-          fechaCierre,
-          motivoCierre: motivoLimpio
-        }
-      : p
-  );
-
-  // Se conservan todas las participaciones en el historial pasando las activas a "Cerrada por proyecto"
-  const asignacionesActualizadas = asignaciones.map((a) => {
-    if (Number(a.idProyecto) === Number(idProyecto)) {
-      participacionesConservadas += 1;
-      return {
-        ...a,
-        estado: a.estado === "Activa" ? "Cerrada por proyecto" : a.estado
-      };
-    }
-    return a;
+  return construirPayloadProyecto({
+    ...proyectoActual,
+    estado: "Finalizado",
+    fechaFin: proyectoActual.fechaFin || hoyBolivia()
   });
+}
 
+/**
+ * Construye el objeto exacto para la operación `asignaciones.guardar` de /api/backend:
+ * { idAsignacion: 0, idProyecto, idPasante, rol, fechaInicio, fechaFin: null, activo: true, version: 0 }
+ */
+export function construirPayloadAsignacion(datos = {}) {
   return {
-    ok: true,
-    codigo: 200,
-    proyectos: proyectosActualizados,
-    asignaciones: asignacionesActualizadas,
-    participacionesConservadas,
-    resumen: `Proyecto '${proyecto.nombre}' cerrado. Se conservaron ${participacionesConservadas} participación(es) en el historial.`
+    idAsignacion: Number(datos.idAsignacion ?? datos.id ?? 0),
+    idProyecto: Number(datos.idProyecto || 0),
+    idPasante: Number(datos.idPasante ?? datos.idPersonal ?? 0),
+    rol: String(datos.rol ?? datos.funcion ?? "").trim(),
+    fechaInicio: String(datos.fechaInicio || "").trim(),
+    fechaFin: datos.fechaFin ? String(datos.fechaFin).trim() : null,
+    activo: datos.activo !== undefined ? Boolean(datos.activo) : true,
+    version: Number(datos.version ?? 0)
   };
 }
 
 /**
- * 3. Validación de asignación de personas, función, período y prevención de duplicados activos.
- * Criterio de aceptación: "Las asignaciones respetan las fechas del proyecto" y "Prevención de asignaciones activas duplicadas".
+ * Para finalizar una asignación: leerla y guardar `activo: false`, conservando IDs y versión.
+ */
+export function prepararFinalizacionAsignacion(asignacionActual) {
+  if (!asignacionActual || !Number(asignacionActual.idAsignacion ?? asignacionActual.id)) {
+    throw new Error("Debe proporcionar una asignación existente para finalizarla.");
+  }
+  return construirPayloadAsignacion({
+    ...asignacionActual,
+    activo: false,
+    fechaFin: asignacionActual.fechaFin || hoyBolivia()
+  });
+}
+
+/**
+ * 3. Validación de asignaciones:
+ * - Respeta las fechas del proyecto.
+ * - Previene asignaciones activas duplicadas (mismo idProyecto + idPasante con fechas solapadas).
  */
 export function validarAsignacion(
   datosAsignacion,
@@ -182,232 +168,152 @@ export function validarAsignacion(
   idEdicion = null
 ) {
   const errores = {};
-  const idProyecto = Number(datosAsignacion?.idProyecto || 0);
-  const idPersonal = Number(datosAsignacion?.idPersonal || 0);
-  const funcion = String(datosAsignacion?.funcion || "").trim();
-  const fechaInicio = String(datosAsignacion?.fechaInicio || "").trim();
-  const fechaFin = String(datosAsignacion?.fechaFin || "").trim();
+  const payload = construirPayloadAsignacion(datosAsignacion);
+  const idActual = Number(idEdicion ?? payload.idAsignacion ?? 0);
 
-  const proyecto = proyectos.find((p) => Number(p.id) === idProyecto);
+  const proyecto = proyectos.find(
+    (p) => Number(p.idProyecto ?? p.id) === payload.idProyecto
+  );
 
-  if (!idProyecto || !proyecto) {
+  if (!payload.idProyecto || !proyecto) {
     errores.idProyecto = "Seleccione un proyecto válido.";
-  } else if (proyecto.estado !== "Activo" && idEdicion === null) {
-    errores.idProyecto = `No se pueden registrar nuevas asignaciones en un proyecto en estado '${proyecto.estado}'.`;
+  } else if (proyecto.estado === "Finalizado" && idActual === 0) {
+    errores.idProyecto = "No se pueden registrar nuevas asignaciones en un proyecto Finalizado.";
   }
 
-  if (!idPersonal) {
-    errores.idPersonal = "Seleccione una persona del padrón de personal.";
+  if (!payload.idPasante) {
+    errores.idPasante = "Seleccione una persona del padrón.";
   }
 
-  if (!funcion || funcion.length < 3) {
-    errores.funcion = "Especifique la función o rol a desempeñar (mínimo 3 caracteres).";
+  if (!payload.rol || payload.rol.length < 3) {
+    errores.rol = "Especifique el rol o función en el proyecto (mínimo 3 caracteres).";
   }
 
-  if (!fechaInicio) {
+  if (!payload.fechaInicio) {
     errores.fechaInicio = "La fecha de inicio de la asignación es obligatoria.";
   }
 
-  if (!fechaFin) {
-    errores.fechaFin = "La fecha de fin de la asignación es obligatoria.";
+  if (payload.fechaInicio && payload.fechaFin && payload.fechaInicio > payload.fechaFin) {
+    errores.fechaFin = "La fecha de fin no puede ser anterior a la fecha de inicio.";
   }
 
-  if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
-    errores.fechaFin = "La fecha de fin de la asignación no puede ser anterior a la fecha de inicio.";
-  }
+  // Verificar que respete las fechas del proyecto
+  if (proyecto && payload.fechaInicio) {
+    const fueraDeInicio = payload.fechaInicio < proyecto.fechaInicio;
+    const fueraDeFinProyecto =
+      proyecto.fechaFin &&
+      ((payload.fechaFin && payload.fechaFin > proyecto.fechaFin) ||
+        payload.fechaInicio > proyecto.fechaFin);
 
-  // Verificar que respete el período del proyecto
-  if (proyecto && fechaInicio && fechaFin && fechaInicio <= fechaFin) {
-    if (fechaInicio < proyecto.fechaInicio || fechaFin > proyecto.fechaFin) {
-      errores.periodo = `Las fechas de asignación (${fechaInicio} al ${fechaFin}) deben estar dentro del período del proyecto (${proyecto.fechaInicio} al ${proyecto.fechaFin}).`;
+    if (fueraDeInicio || fueraDeFinProyecto) {
+      const rangoTexto = `${proyecto.fechaInicio} al ${proyecto.fechaFin || "sin fecha límite"}`;
+      errores.periodo = `Las fechas de asignación deben estar dentro del período del proyecto (${rangoTexto}).`;
     }
   }
 
-  // Prevención de asignaciones activas duplicadas o solapadas para la misma persona y proyecto
-  if (idProyecto && idPersonal && fechaInicio && fechaFin && fechaInicio <= fechaFin) {
+  // Prevención de asignaciones activas duplicadas
+  if (payload.activo && payload.idProyecto && payload.idPasante && payload.fechaInicio) {
     const asignacionSolapada = asignacionesExistentes.find((a) => {
-      if (Number(a.id) === Number(idEdicion)) return false;
-      if (a.estado !== "Activa") return false;
-      if (Number(a.idProyecto) !== idProyecto || Number(a.idPersonal) !== idPersonal) return false;
-      return rangosFechasSeSolapan(fechaInicio, fechaFin, a.fechaInicio, a.fechaFin);
+      const idExistente = Number(a.idAsignacion ?? a.id ?? 0);
+      if (idExistente === idActual && idActual > 0) return false;
+      const estaActiva = a.activo !== undefined ? Boolean(a.activo) : a.estado === "Activa";
+      if (!estaActiva) return false;
+      const idPryExistente = Number(a.idProyecto);
+      const idPasExistente = Number(a.idPasante ?? a.idPersonal);
+      if (idPryExistente !== payload.idProyecto || idPasExistente !== payload.idPasante) {
+        return false;
+      }
+      return rangosFechasSeSolapan(
+        payload.fechaInicio,
+        payload.fechaFin,
+        a.fechaInicio,
+        a.fechaFin
+      );
     });
 
     if (asignacionSolapada) {
-      errores.duplicado = `Asignación activa duplicada: la persona ya está asignada a este proyecto del ${asignacionSolapada.fechaInicio} al ${asignacionSolapada.fechaFin} (${asignacionSolapada.funcion}).`;
+      errores.duplicado = `Asignación activa duplicada: la persona ya tiene participación activa en este proyecto del ${asignacionSolapada.fechaInicio} al ${asignacionSolapada.fechaFin || "presente"} (${asignacionSolapada.rol || asignacionSolapada.funcion}).`;
     }
   }
 
   return {
     valido: Object.keys(errores).length === 0,
-    errores
+    errores,
+    payload
   };
 }
 
 /**
- * 4. Validación de viáticos y gastos adicionales según reglas vigentes.
+ * Construye el objeto exacto para la operación `viaticos.guardar` de /api/backend:
+ * { idViatico: 0, idPasante, fecha, monto, concepto, gastoExtra: 0 }
+ * Sin enviar idProyecto, presupuesto, categoria, comprobante ni justificacionAdicional.
+ */
+export function construirPayloadViatico(datos = {}) {
+  return {
+    idViatico: Number(datos.idViatico ?? datos.id ?? 0),
+    idPasante: Number(datos.idPasante ?? datos.idPersonal ?? 0),
+    fecha: String(datos.fecha || "").trim(),
+    monto: Number(datos.monto),
+    concepto: String(datos.concepto ?? datos.descripcion ?? "").trim(),
+    gastoExtra: Number(datos.gastoExtra ?? datos.montoAdicional ?? 0)
+  };
+}
+
+/**
+ * 4. Validación de viáticos según reglas vigentes reales de C# (BACKEND-PARA-LOS-5-MODULOS.md):
+ * - Viático base (`monto`): mayor a 0 y hasta 12 Bs (0 < monto <= 12).
+ * - Gasto extra (`gastoExtra`): no negativo (>= 0).
+ * - Esquema estricto: { idViatico, idPasante, fecha, monto, concepto, gastoExtra }.
  */
 export function validarViatico(
   datosViatico,
-  proyectos = [],
-  asignaciones = [],
   reglas = REGLAS_VIATICOS_VIGENTES
 ) {
   const errores = {};
-  const idProyecto = Number(datosViatico?.idProyecto || 0);
-  const idPersonal = Number(datosViatico?.idPersonal || 0);
-  const categoria = String(datosViatico?.categoria || "Transporte").trim();
-  const monto = Number(datosViatico?.monto);
-  const esGastoAdicional = Boolean(datosViatico?.esGastoAdicional);
-  const montoAdicional = esGastoAdicional ? Number(datosViatico?.montoAdicional || 0) : 0;
-  const comprobante = String(datosViatico?.comprobante || "").trim();
-  const descripcion = String(datosViatico?.descripcion || "").trim();
-  const justificacionAdicional = String(datosViatico?.justificacionAdicional || "").trim();
-  const fecha = String(datosViatico?.fecha || "").trim();
+  const payload = construirPayloadViatico(datosViatico);
 
-  const proyecto = proyectos.find((p) => Number(p.id) === idProyecto);
-
-  if (!idProyecto || !proyecto) {
-    errores.idProyecto = "Seleccione un proyecto válido.";
-  } else if (proyecto.estado === "Cerrado") {
-    errores.idProyecto = "No se pueden registrar o modificar viáticos en un proyecto cerrado.";
+  if (!payload.idPasante || payload.idPasante <= 0) {
+    errores.idPasante = "Seleccione la persona beneficiaria (idPasante).";
   }
 
-  if (!idPersonal) {
-    errores.idPersonal = "Seleccione la persona beneficiaria del viático.";
+  if (!payload.fecha) {
+    errores.fecha = "La fecha del viático es obligatoria (YYYY-MM-DD).";
   }
 
-  const topeCategoria = reglas.topesPorCategoria[categoria];
-  if (!topeCategoria) {
-    errores.categoria = "Seleccione una categoría de viático válida.";
+  if (Number.isNaN(payload.monto) || payload.monto <= 0) {
+    errores.monto = "El viático base debe ser mayor a 0 Bs.";
+  } else if (payload.monto > reglas.montoBaseMaximo) {
+    errores.monto = `Regla vigente del sistema C#: el viático base (Bs ${payload.monto.toFixed(2)}) no puede superar Bs ${reglas.montoBaseMaximo.toFixed(2)}. Registre cualquier excedente en el campo 'gastoExtra'.`;
   }
 
-  if (Number.isNaN(monto) || monto <= 0) {
-    errores.monto = "El monto base del viático debe ser mayor a 0.";
-  } else if (topeCategoria && monto > topeCategoria) {
-    errores.monto = `El monto base (${reglas.moneda} ${monto.toFixed(2)}) supera el tope vigente para ${categoria} (${reglas.moneda} ${topeCategoria.toFixed(2)}). Si requiere excedente, registre el resto como gasto adicional justificado.`;
+  if (Number.isNaN(payload.gastoExtra) || payload.gastoExtra < 0) {
+    errores.gastoExtra = "El gasto adicional (gastoExtra) no puede ser negativo.";
   }
 
-  if (esGastoAdicional) {
-    if (Number.isNaN(montoAdicional) || montoAdicional <= 0) {
-      errores.montoAdicional = "Ingrese un monto adicional mayor a 0 o desactive la opción de gasto adicional.";
-    }
-    const montoTotal = (Number.isNaN(monto) ? 0 : monto) + (Number.isNaN(montoAdicional) ? 0 : montoAdicional);
-    if (montoTotal > reglas.topeMaximoConGastoAdicional) {
-      errores.montoAdicional = `El total acumulado (${reglas.moneda} ${montoTotal.toFixed(2)}) excede el límite máximo autorizado con gasto adicional (${reglas.moneda} ${reglas.topeMaximoConGastoAdicional.toFixed(2)}).`;
-    }
-    if (reglas.requiereComprobanteEnAdicional && !comprobante) {
-      errores.comprobante = "Los gastos adicionales exigen número de factura o comprobante de respaldo.";
-    }
-    if (justificacionAdicional.length < reglas.minLongitudJustificacionAdicional) {
-      errores.justificacionAdicional = `Explique la justificación del gasto adicional (mínimo ${reglas.minLongitudJustificacionAdicional} caracteres).`;
-    }
-  }
-
-  if (!descripcion || descripcion.length < 4) {
-    errores.descripcion = "Ingrese el concepto o descripción del gasto (mínimo 4 caracteres).";
-  }
-
-  if (!fecha) {
-    errores.fecha = "La fecha del viático es obligatoria.";
-  } else if (proyecto && (fecha < proyecto.fechaInicio || fecha > proyecto.fechaFin)) {
-    errores.fecha = `La fecha del viático (${fecha}) debe estar dentro de la vigencia del proyecto (${proyecto.fechaInicio} al ${proyecto.fechaFin}).`;
-  }
-
-  // Verificar que la persona tenga participación registrada en el proyecto
-  if (idProyecto && idPersonal && asignaciones.length > 0) {
-    const tieneAsignacionEnProyecto = asignaciones.some(
-      (a) =>
-        Number(a.idProyecto) === idProyecto &&
-        Number(a.idPersonal) === idPersonal &&
-        a.estado !== "Cancelada"
-    );
-    if (!tieneAsignacionEnProyecto) {
-      errores.idPersonal = "La persona seleccionada debe contar con una asignación en este proyecto antes de registrarle viáticos.";
-    }
+  if (!payload.concepto || payload.concepto.length < 3) {
+    errores.concepto = "Ingrese el concepto del viático (mínimo 3 caracteres).";
   }
 
   return {
     valido: Object.keys(errores).length === 0,
-    errores
+    errores,
+    payload
   };
 }
 
 /**
- * 5. Baja autorizada de viáticos.
- * Requiere rol Administrador y motivo de baja documentado.
- */
-export function ejecutarBajaViatico({
-  idViatico,
-  motivoBaja,
-  rolUsuario = "operador",
-  viaticos = []
-}) {
-  if (rolUsuario !== "administrador") {
-    return {
-      ok: false,
-      codigo: 403,
-      mensaje: "Acción rechazada: solo un Administrador está autorizado para dar de baja un viático."
-    };
-  }
-
-  const viatico = viaticos.find((v) => Number(v.id) === Number(idViatico));
-  if (!viatico) {
-    return {
-      ok: false,
-      codigo: 404,
-      mensaje: "El viático indicado no existe."
-    };
-  }
-
-  if (viatico.estado === "Baja") {
-    return {
-      ok: false,
-      codigo: 400,
-      mensaje: "Este viático ya fue dado de baja anteriormente."
-    };
-  }
-
-  const motivoLimpio = String(motivoBaja || "").trim();
-  if (motivoLimpio.length < 5) {
-    return {
-      ok: false,
-      codigo: 400,
-      mensaje: "Indique el motivo de la baja autorizada (mínimo 5 caracteres)."
-    };
-  }
-
-  const fechaBaja = obtenerFechaHoraLaPaz();
-  const viaticosActualizados = viaticos.map((v) =>
-    Number(v.id) === Number(idViatico)
-      ? {
-          ...v,
-          estado: "Baja",
-          motivoBaja: motivoLimpio,
-          fechaBaja
-        }
-      : v
-  );
-
-  return {
-    ok: true,
-    codigo: 200,
-    viaticos: viaticosActualizados,
-    resumen: `Viático #${idViatico} dado de baja con autorización administrativa.`
-  };
-}
-
-/**
- * Calcula el importe total (base + adicional) de un registro de viático.
+ * Calcula el importe total (monto + gastoExtra) de un viático.
  */
 export function importeTotalViatico(viatico) {
   const base = Number(viatico?.monto || 0);
-  const adicional = viatico?.esGastoAdicional ? Number(viatico?.montoAdicional || 0) : 0;
-  return Math.round((base + adicional) * 100) / 100;
+  const extra = Number(viatico?.gastoExtra ?? 0);
+  return Math.round((base + extra) * 100) / 100;
 }
 
 /**
- * 6. Totales por persona, proyecto y período + contrato conciliado para el Módulo 04 (Reportes).
- * Criterio de aceptación: "los totales coinciden con los reportes" y "el personal de planta no recibe metas de pasantía".
+ * 5. Cálculo de totales por persona, proyecto y período conciliado con el Módulo 04 (Reportes).
+ * - Planta (`Personal de planta`) tiene `horasRequeridas: 0` y `aplicaMetaPasantia: false`.
+ * - Relaciona los viáticos del pasante con los proyectos en los que tiene asignación durante la fecha del viático.
  */
 export function calcularTotalesYResumenReportes({
   proyectos = [],
@@ -418,126 +324,138 @@ export function calcularTotalesYResumenReportes({
 }) {
   const {
     idProyecto = "",
-    idPersonal = "",
-    fechaDesde = "",
-    fechaHasta = "",
-    incluirBajas = false
+    idPasante = "",
+    inicio = "",
+    fin = ""
   } = filtros;
 
-  // Filtrar viáticos según criterios
-  const viaticosFiltrados = viaticos.filter((v) => {
-    if (!incluirBajas && v.estado === "Baja") return false;
-    if (idProyecto && Number(v.idProyecto) !== Number(idProyecto)) return false;
-    if (idPersonal && Number(v.idPersonal) !== Number(idPersonal)) return false;
-    if (fechaDesde && v.fecha < fechaDesde) return false;
-    if (fechaHasta && v.fecha > fechaHasta) return false;
+  const idPryFiltro = idProyecto ? Number(idProyecto) : null;
+  const idPasFiltro = idPasante ? Number(idPasante) : null;
+
+  // Filtrar asignaciones según proyecto, persona y rango de fechas
+  const asignacionesFiltradas = asignaciones.filter((a) => {
+    const aIdProyecto = Number(a.idProyecto);
+    const aIdPasante = Number(a.idPasante ?? a.idPersonal);
+    if (idPryFiltro && aIdProyecto !== idPryFiltro) return false;
+    if (idPasFiltro && aIdPasante !== idPasFiltro) return false;
+    if (inicio && a.fechaFin && a.fechaFin < inicio) return false;
+    if (fin && a.fechaInicio > fin) return false;
     return true;
   });
 
-  // Filtrar asignaciones según criterios
-  const asignacionesFiltradas = asignaciones.filter((a) => {
-    if (idProyecto && Number(a.idProyecto) !== Number(idProyecto)) return false;
-    if (idPersonal && Number(a.idPersonal) !== Number(idPersonal)) return false;
-    if (fechaDesde && a.fechaFin < fechaDesde) return false;
-    if (fechaHasta && a.fechaInicio > fechaHasta) return false;
+  // Si se filtra por proyecto, determinar qué personas tienen asignación en ese proyecto
+  const viaticosFiltrados = viaticos.filter((v) => {
+    const vIdPasante = Number(v.idPasante ?? v.idPersonal);
+    if (idPasFiltro && vIdPasante !== idPasFiltro) return false;
+    if (inicio && v.fecha < inicio) return false;
+    if (fin && v.fecha > fin) return false;
+
+    if (idPryFiltro) {
+      // Un viático corresponde al proyecto si la persona estuvo asignada a ese proyecto en esa fecha
+      const asignadoEnFecha = asignaciones.some((a) => {
+        if (Number(a.idProyecto) !== idPryFiltro) return false;
+        if (Number(a.idPasante ?? a.idPersonal) !== vIdPasante) return false;
+        const finAsig = a.fechaFin || "9999-12-31";
+        return v.fecha >= a.fechaInicio && v.fecha <= finAsig;
+      });
+      if (!asignadoEnFecha) return false;
+    }
     return true;
   });
 
   let totalMontoBase = 0;
-  let totalMontoAdicional = 0;
+  let totalGastoExtra = 0;
   let totalGeneralConciliado = 0;
-  let cantidadVigentes = 0;
-  let cantidadBajas = 0;
 
-  for (const v of viaticos) {
-    const pasaFiltrosContexto =
-      (!idProyecto || Number(v.idProyecto) === Number(idProyecto)) &&
-      (!idPersonal || Number(v.idPersonal) === Number(idPersonal)) &&
-      (!fechaDesde || v.fecha >= fechaDesde) &&
-      (!fechaHasta || v.fecha <= fechaHasta);
-
-    if (!pasaFiltrosContexto) continue;
-
-    if (v.estado === "Baja") {
-      cantidadBajas += 1;
-      if (!incluirBajas) continue;
-    } else {
-      cantidadVigentes += 1;
-    }
-
+  for (const v of viaticosFiltrados) {
     const base = Number(v.monto || 0);
-    const adicional = v.esGastoAdicional ? Number(v.montoAdicional || 0) : 0;
+    const extra = Number(v.gastoExtra || 0);
     totalMontoBase += base;
-    totalMontoAdicional += adicional;
-    totalGeneralConciliado += base + adicional;
+    totalGastoExtra += extra;
+    totalGeneralConciliado += base + extra;
   }
 
   totalMontoBase = Math.round(totalMontoBase * 100) / 100;
-  totalMontoAdicional = Math.round(totalMontoAdicional * 100) / 100;
+  totalGastoExtra = Math.round(totalGastoExtra * 100) / 100;
   totalGeneralConciliado = Math.round(totalGeneralConciliado * 100) / 100;
 
   // Totales agrupados por proyecto
   const porProyecto = proyectos
-    .filter((p) => !idProyecto || Number(p.id) === Number(idProyecto))
+    .filter((p) => !idPryFiltro || Number(p.idProyecto ?? p.id) === idPryFiltro)
     .map((p) => {
-      const viaticosProyecto = viaticosFiltrados.filter(
-        (v) => Number(v.idProyecto) === Number(p.id) && v.estado !== "Baja"
+      const pid = Number(p.idProyecto ?? p.id);
+      const asignacionesPry = asignacionesFiltradas.filter(
+        (a) => Number(a.idProyecto) === pid
       );
-      const asignacionesProyecto = asignacionesFiltradas.filter(
-        (a) => Number(a.idProyecto) === Number(p.id)
-      );
-      const totalViaticos = Math.round(
-        viaticosProyecto.reduce((acc, item) => acc + importeTotalViatico(item), 0) * 100
+      const viaticosPry = viaticosFiltrados.filter((v) => {
+        const vidPasante = Number(v.idPasante ?? v.idPersonal);
+        return asignaciones.some((a) => {
+          if (Number(a.idProyecto) !== pid) return false;
+          if (Number(a.idPasante ?? a.idPersonal) !== vidPasante) return false;
+          const finAsig = a.fechaFin || "9999-12-31";
+          return v.fecha >= a.fechaInicio && v.fecha <= finAsig;
+        });
+      });
+
+      const totalBasePry = Math.round(
+        viaticosPry.reduce((acc, item) => acc + Number(item.monto || 0), 0) * 100
       ) / 100;
-      const presupuesto = Number(p.presupuestoViaticos || 0);
-      const saldoPresupuesto = Math.round((presupuesto - totalViaticos) * 100) / 100;
+      const totalExtraPry = Math.round(
+        viaticosPry.reduce((acc, item) => acc + Number(item.gastoExtra || 0), 0) * 100
+      ) / 100;
+      const totalViaticos = Math.round((totalBasePry + totalExtraPry) * 100) / 100;
 
       return {
-        idProyecto: p.id,
-        codigo: p.codigo || `PRY-${p.id}`,
+        idProyecto: pid,
+        codigo: p.codigo,
         nombre: p.nombre,
+        cliente: p.cliente || "",
         estado: p.estado,
-        periodo: `${p.fechaInicio} al ${p.fechaFin}`,
-        participantesCount: asignacionesProyecto.length,
-        viaticosCount: viaticosProyecto.length,
-        presupuestoViaticos: presupuesto,
-        totalViaticos,
-        saldoPresupuesto
+        version: p.version ?? 1,
+        periodo: `${p.fechaInicio} al ${p.fechaFin || "Abierto"}`,
+        participantesCount: asignacionesPry.length,
+        activosCount: asignacionesPry.filter((a) => a.activo).length,
+        viaticosCount: viaticosPry.length,
+        totalBase: totalBasePry,
+        totalGastoExtra: totalExtraPry,
+        totalViaticos
       };
     });
 
-  // Totales agrupados por persona (respetando regla del Módulo 2/4: Planta sin meta de horas de pasantía)
+  // Totales agrupados por persona (respetando tipoContrato: 'Pasante' | 'Personal de planta')
   const porPersona = personal
-    .filter((per) => !idPersonal || Number(per.id) === Number(idPersonal))
+    .filter((per) => !idPasFiltro || Number(per.idPasante ?? per.id) === idPasFiltro)
     .map((per) => {
-      const viaticosPersona = viaticosFiltrados.filter(
-        (v) => Number(v.idPersonal) === Number(per.id) && v.estado !== "Baja"
+      const idPer = Number(per.idPasante ?? per.id);
+      const tipoContrato = per.tipoContrato || (per.tipo === "Planta" ? "Personal de planta" : "Pasante");
+      const esPasante = tipoContrato === "Pasante";
+
+      const viaticosPer = viaticosFiltrados.filter(
+        (v) => Number(v.idPasante ?? v.idPersonal) === idPer
       );
-      const asignacionesPersona = asignacionesFiltradas.filter(
-        (a) => Number(a.idPersonal) === Number(per.id)
+      const asignacionesPer = asignacionesFiltradas.filter(
+        (a) => Number(a.idPasante ?? a.idPersonal) === idPer
       );
+
       const totalBase = Math.round(
-        viaticosPersona.reduce((acc, item) => acc + Number(item.monto || 0), 0) * 100
+        viaticosPer.reduce((acc, item) => acc + Number(item.monto || 0), 0) * 100
       ) / 100;
-      const totalAdicional = Math.round(
-        viaticosPersona.reduce(
-          (acc, item) => acc + (item.esGastoAdicional ? Number(item.montoAdicional || 0) : 0),
-          0
-        ) * 100
+      const totalExtra = Math.round(
+        viaticosPer.reduce((acc, item) => acc + Number(item.gastoExtra || 0), 0) * 100
       ) / 100;
-      const totalPersona = Math.round((totalBase + totalAdicional) * 100) / 100;
+      const totalPersona = Math.round((totalBase + totalExtra) * 100) / 100;
 
       return {
-        idPersonal: per.id,
-        codigo: per.codigo || `PER-00${per.id}`,
+        idPasante: idPer,
+        codigo: per.codigo,
         nombreCompleto: `${per.nombres} ${per.apellidos}`,
-        tipo: per.tipo,
-        // Regla inter-módulo: solo Pasante tiene meta de pasantía (600h); Planta siempre null
-        aplicaMetaPasantia: per.tipo === "Pasante",
-        asignacionesCount: asignacionesPersona.length,
-        viaticosCount: viaticosPersona.length,
+        tipoContrato,
+        horasRequeridas: esPasante ? Number(per.horasRequeridas ?? 600) : 0,
+        aplicaMetaPasantia: esPasante,
+        asignacionesCount: asignacionesPer.length,
+        viaticosCount: viaticosPer.length,
         totalBase,
-        totalAdicional,
+        totalGastoExtra: totalExtra,
         totalViaticosConciliado: totalPersona
       };
     });
@@ -547,17 +465,16 @@ export function calcularTotalesYResumenReportes({
     zonaHoraria: "America/La_Paz",
     generadoEn: obtenerFechaHoraLaPaz(),
     filtrosAplicados: {
-      idProyecto: idProyecto ? Number(idProyecto) : null,
-      idPersonal: idPersonal ? Number(idPersonal) : null,
-      fechaDesde: fechaDesde || null,
-      fechaHasta: fechaHasta || null
+      inicio: inicio || null,
+      fin: fin || null,
+      idProyecto: idPryFiltro,
+      id: idPasFiltro
     },
     resumenGlobal: {
       totalMontoBase,
-      totalMontoAdicional,
+      totalGastoExtra,
       totalGeneralConciliado,
-      cantidadVigentes,
-      cantidadBajas,
+      cantidadViaticos: viaticosFiltrados.length,
       totalAsignacionesEnPeriodo: asignacionesFiltradas.length
     },
     porProyecto,

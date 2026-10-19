@@ -9,46 +9,27 @@ import {
 } from "../mocks/datosPrueba.js";
 import {
   validarProyecto,
-  ejecutarCierreProyecto,
+  prepararCierreProyecto,
   validarAsignacion,
+  prepararFinalizacionAsignacion,
   validarViatico,
-  ejecutarBajaViatico,
   calcularTotalesYResumenReportes,
   obtenerFechaHoraLaPaz
 } from "../utils/reglasOperaciones.js";
 
-const STORAGE_KEY = "sii_modulo05_operaciones_v1";
+/**
+ * Regla de BACKEND-PARA-LOS-5-MODULOS.md:
+ * "Guardar el token solo en memoria. No confiar en rolUsuario, x-rol-usuario ni x-usuario:
+ * la autoridad es la sesión validada por el servidor."
+ * "No reintentar automáticamente escrituras: salvo las marcaciones rápidas y solicitudes con UUID, no todas son idempotentes."
+ */
+let tokenEnMemoria = "";
+let sesionActualEnMemoria = null;
 
-function cargarEstadoLocal() {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return crearEstadoBase();
-  }
-  try {
-    const guardado = window.localStorage.getItem(STORAGE_KEY);
-    if (!guardado) return crearEstadoBase();
-    const parseado = JSON.parse(guardado);
-    return {
-      personal: Array.isArray(parseado.personal) ? parseado.personal : structuredClone(mockPersonal),
-      proyectos: Array.isArray(parseado.proyectos) ? parseado.proyectos : structuredClone(mockProyectos),
-      asignaciones: Array.isArray(parseado.asignaciones) ? parseado.asignaciones : structuredClone(mockAsignaciones),
-      viaticos: Array.isArray(parseado.viaticos) ? parseado.viaticos : structuredClone(mockViaticos),
-      auditoria: Array.isArray(parseado.auditoria) ? parseado.auditoria : structuredClone(mockAuditoria)
-    };
-  } catch {
-    return crearEstadoBase();
-  }
-}
+// Memoria volátil exclusiva para cuando la API C# remota no está disponible localmente (sin usar localStorage)
+let memoriaContratoLocal = crearMemoriaInicial();
 
-function guardarEstadoLocal(estado) {
-  if (typeof window === "undefined" || !window.localStorage) return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(estado));
-  } catch {
-    // Ignorar errores de cuota en navegadores restringidos
-  }
-}
-
-function crearEstadoBase() {
+function crearMemoriaInicial() {
   return {
     personal: structuredClone(mockPersonal),
     proyectos: structuredClone(mockProyectos),
@@ -58,433 +39,494 @@ function crearEstadoBase() {
   };
 }
 
-async function pausaSimulada(modoRed) {
-  if (modoRed === "lenta") {
-    await new Promise((resolve) => setTimeout(resolve, 900));
-  } else {
-    await new Promise((resolve) => setTimeout(resolve, 120));
-  }
-  if (modoRed === "error") {
-    throw new Error("Error de conexión con el servidor (fallo de red simulado). Verifique su conectividad e intente nuevamente.");
-  }
+export function obtenerTokenMemoria() {
+  return tokenEnMemoria;
+}
+
+export function establecerTokenMemoria(nuevoToken = "", usuarioActual = null) {
+  tokenEnMemoria = String(nuevoToken || "");
+  sesionActualEnMemoria = usuarioActual;
+}
+
+export function cerrarSesionMemoria() {
+  tokenEnMemoria = "";
+  sesionActualEnMemoria = null;
+}
+
+export function obtenerSesionMemoria() {
+  return sesionActualEnMemoria;
+}
+
+export function reiniciarMemoriaSimulada() {
+  memoriaContratoLocal = crearMemoriaInicial();
+  return memoriaContratoLocal;
 }
 
 /**
- * Consulta no intrusiva a /api/personal (Módulo 02).
- * Si responde 501 (pendiente) o falla, conserva mockPersonal sin interrumpir el flujo.
+ * Función oficial `llamar` definida en BACKEND-PARA-LOS-5-MODULOS.md.
+ * Envía POST /api/backend con { operacion, datos } y cabecera Authorization: Bearer <accessToken>.
+ * Nunca envía x-rol-usuario ni x-usuario.
  */
-export async function sincronizarPersonalModulo02() {
+export async function llamar(operacion, datos = {}, accessToken = tokenEnMemoria, opcionesExtra = {}) {
+  const { fetchImpl = fetch } = opcionesExtra;
+  const respuesta = await fetchImpl("/api/backend", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    },
+    body: JSON.stringify({ operacion, datos })
+  });
+
+  const texto = await respuesta.text();
+  let resultado = {};
   try {
-    const resp = await fetch("/api/personal", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000)
-    });
-    if (resp.status === 501) {
-      return {
-        origen: "respaldo-local",
-        estadoModulo02: "Pendiente (501) — usando padrón de prueba compatible",
-        personal: structuredClone(mockPersonal)
-      };
-    }
-    if (resp.ok) {
-      const data = await resp.json();
-      if (Array.isArray(data?.personal) && data.personal.length > 0) {
-        return {
-          origen: "api-modulo-02",
-          estadoModulo02: "Conectado con Módulo 02 (/api/personal)",
-          personal: data.personal
-        };
-      }
-    }
+    resultado = texto ? JSON.parse(texto) : {};
   } catch {
-    // Fallback silencioso
-  }
-  return {
-    origen: "respaldo-local",
-    estadoModulo02: "Respaldo local activo (Módulo 02 aún no conectado)",
-    personal: structuredClone(mockPersonal)
-  };
-}
-
-/**
- * Carga inicial de datos del Módulo 05 intentando /api/operaciones y sincronizando con almacenamiento local.
- */
-export async function cargarDatosOperaciones({ modoRed = "normal" } = {}) {
-  await pausaSimulada(modoRed);
-  const estadoLocal = cargarEstadoLocal();
-  const infoPersonal = await sincronizarPersonalModulo02();
-
-  try {
-    const resp = await fetch("/api/operaciones", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000)
+    throw Object.assign(new Error("La API devolvió una respuesta inválida."), {
+      status: 502
     });
-    if (resp.ok) {
-      const data = await resp.json();
-      const consolidado = {
-        personal: infoPersonal.personal,
-        proyectos: data.proyectos || estadoLocal.proyectos,
-        asignaciones: data.asignaciones || estadoLocal.asignaciones,
-        viaticos: data.viaticos || estadoLocal.viaticos,
-        auditoria: data.auditoria || estadoLocal.auditoria
-      };
-      guardarEstadoLocal(consolidado);
-      return {
-        ...consolidado,
-        reglasViaticos: REGLAS_VIATICOS_VIGENTES,
-        estadoConexion: "API /api/operaciones activa",
-        estadoModulo02: infoPersonal.estadoModulo02
-      };
-    }
-  } catch {
-    // En desarrollo local sin modificar vite.config.js o sin red, opera con persistencia local validada
   }
 
-  const estadoInicial = {
-    ...estadoLocal,
-    personal: infoPersonal.personal
-  };
-  guardarEstadoLocal(estadoInicial);
-
-  return {
-    ...estadoInicial,
-    reglasViaticos: REGLAS_VIATICOS_VIGENTES,
-    estadoConexion: "Modo autónomo con validaciones de contrato activas",
-    estadoModulo02: infoPersonal.estadoModulo02
-  };
-}
-
-export function restaurarDatosPruebaOperaciones() {
-  const base = crearEstadoBase();
-  guardarEstadoLocal(base);
-  return base;
-}
-
-/**
- * Ejecuta una operación validando con las mismas reglas de backend y registrando auditoría.
- */
-export async function procesarOperacionModulo05({
-  tipoOperacion,
-  datos,
-  rolUsuario = "administrador",
-  usuario = "admin.sii",
-  modoRed = "normal"
-}) {
-  await pausaSimulada(modoRed);
-  const estado = cargarEstadoLocal();
-
-  const agregarAuditoria = (accion, entidad, detalle) => {
-    const evento = {
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      fechaHora: obtenerFechaHoraLaPaz(),
-      zonaHoraria: "America/La_Paz",
-      usuario,
-      rol: rolUsuario,
-      accion,
-      entidad,
-      detalle
-    };
-    estado.auditoria = [evento, ...estado.auditoria];
-  };
-
-  if (tipoOperacion === "GUARDAR_PROYECTO") {
-    const idEdicion = datos?.id ? Number(datos.id) : null;
-    const validacion = validarProyecto(datos, estado.proyectos, idEdicion);
-    if (!validacion.valido) {
-      return {
-        ok: false,
-        codigo: 400,
-        mensaje: "Revisa los campos marcados en el formulario de proyecto.",
-        errores: validacion.errores
-      };
+  if (!respuesta.ok) {
+    if (respuesta.status === 401) {
+      cerrarSesionMemoria();
     }
-
-    if (idEdicion) {
-      estado.proyectos = estado.proyectos.map((p) =>
-        Number(p.id) === idEdicion
-          ? {
-              ...p,
-              nombre: datos.nombre.trim(),
-              descripcion: datos.descripcion.trim(),
-              ubicacion: datos.ubicacion.trim(),
-              fechaInicio: datos.fechaInicio,
-              fechaFin: datos.fechaFin,
-              estado: datos.estado || p.estado,
-              presupuestoViaticos: Number(datos.presupuestoViaticos || 0)
-            }
-          : p
-      );
-      agregarAuditoria(
-        "EDICION_PROYECTO",
-        `Proyecto #${idEdicion}`,
-        `Edición de proyecto '${datos.nombre.trim()}' (${datos.fechaInicio} al ${datos.fechaFin}).`
-      );
-    } else {
-      const nuevoId = estado.proyectos.reduce((max, p) => Math.max(max, Number(p.id)), 100) + 1;
-      const correlativo = String(estado.proyectos.length + 1).padStart(2, "0");
-      const nuevoProyecto = {
-        id: nuevoId,
-        codigo: datos.codigo || `PRY-2026-${correlativo}`,
-        nombre: datos.nombre.trim(),
-        descripcion: datos.descripcion.trim(),
-        ubicacion: datos.ubicacion.trim(),
-        estado: datos.estado || "Activo",
-        fechaInicio: datos.fechaInicio,
-        fechaFin: datos.fechaFin,
-        presupuestoViaticos: Number(datos.presupuestoViaticos || 0)
-      };
-      estado.proyectos = [nuevoProyecto, ...estado.proyectos];
-      agregarAuditoria(
-        "ALTA_PROYECTO",
-        `Proyecto #${nuevoId}`,
-        `Alta de nuevo proyecto '${nuevoProyecto.nombre}' (${nuevoProyecto.fechaInicio} al ${nuevoProyecto.fechaFin}).`
-      );
-    }
-
-    guardarEstadoLocal(estado);
-    return {
-      ok: true,
-      mensaje: idEdicion ? "Proyecto actualizado correctamente." : "Proyecto registrado correctamente.",
-      estado
-    };
-  }
-
-  if (tipoOperacion === "CERRAR_PROYECTO") {
-    const resultado = ejecutarCierreProyecto({
-      idProyecto: datos?.idProyecto,
-      motivoCierre: datos?.motivoCierre,
-      rolUsuario,
-      proyectos: estado.proyectos,
-      asignaciones: estado.asignaciones
-    });
-
-    if (!resultado.ok) {
-      return resultado;
-    }
-
-    estado.proyectos = resultado.proyectos;
-    estado.asignaciones = resultado.asignaciones;
-    agregarAuditoria(
-      "CIERRE_PROYECTO",
-      `Proyecto #${datos.idProyecto}`,
-      `${resultado.resumen} Motivo: ${datos.motivoCierre.trim()}`
+    throw Object.assign(
+      new Error(resultado?.mensaje || "No se pudo completar la operación"),
+      { status: respuesta.status, errores: resultado?.errores }
     );
-    guardarEstadoLocal(estado);
+  }
+
+  return resultado;
+}
+
+/**
+ * Ejecutor de contrato en memoria (sin localStorage) cuando el servidor C# no está encendido
+ * o la rama aún se prueba de forma aislada antes de levantar REGISTRO_DESKTOP_API_URL.
+ * Respeta exactamente las operaciones, nombres de campos, control de versión (409) y reglas C#.
+ */
+export function ejecutarOperacionContratoEnMemoria(operacion, datos = {}, accessToken = tokenEnMemoria) {
+  const esPublica = operacion === "sesion" || operacion === "registro-encargado";
+  if (!esPublica && !accessToken) {
+    throw Object.assign(
+      new Error("Inicie sesión para consultar o modificar datos."),
+      { status: 401 }
+    );
+  }
+
+  const registrarAuditoria = (op, entidad, detalle) => {
+    const usuario = sesionActualEnMemoria?.nombreUsuario || "admin";
+    const rol = sesionActualEnMemoria?.rol || "SuperAdmin";
+    memoriaContratoLocal.auditoria = [
+      {
+        idAuditoria: Date.now() + Math.floor(Math.random() * 1000),
+        fechaHora: obtenerFechaHoraLaPaz(),
+        zonaHoraria: "America/La_Paz",
+        usuario,
+        rol,
+        operacion: op,
+        entidad,
+        detalle
+      },
+      ...memoriaContratoLocal.auditoria
+    ];
+  };
+
+  if (operacion === "sesion") {
+    const usuarioNombre = String(datos?.usuario || "").trim();
+    const password = String(datos?.password || "");
+    if (!usuarioNombre || !password) {
+      throw Object.assign(new Error("Ingrese usuario y contraseña."), { status: 400 });
+    }
+    const rolDetectado =
+      usuarioNombre.toLowerCase().includes("encargado")
+        ? "Encargado"
+        : usuarioNombre.toLowerCase().includes("super")
+        ? "SuperAdmin"
+        : "Admin";
+    const tokenGenerado = `mem-token-${rolDetectado.toLowerCase()}-${Date.now()}`;
+    const perfil = {
+      idUsuario: rolDetectado === "SuperAdmin" ? 1 : rolDetectado === "Admin" ? 2 : 3,
+      nombreUsuario: usuarioNombre,
+      rol: rolDetectado,
+      activo: true
+    };
+    establecerTokenMemoria(tokenGenerado, perfil);
     return {
-      ok: true,
-      mensaje: resultado.resumen,
-      estado
+      tokenType: "Bearer",
+      accessToken: tokenGenerado,
+      expiresIn: 28800
     };
   }
 
-  if (tipoOperacion === "GUARDAR_ASIGNACION") {
-    const idEdicion = datos?.id ? Number(datos.id) : null;
+  if (operacion === "sesion.actual") {
+    return (
+      sesionActualEnMemoria || {
+        idUsuario: 1,
+        nombreUsuario: "admin",
+        rol: "SuperAdmin",
+        activo: true
+      }
+    );
+  }
+
+  if (operacion === "personal.listar") {
+    const idPry = datos?.idProyecto ? Number(datos.idProyecto) : null;
+    const activos = memoriaContratoLocal.personal.filter((p) => p.activo !== false);
+    if (!idPry) return structuredClone(activos);
+    const idsAsignados = new Set(
+      memoriaContratoLocal.asignaciones
+        .filter((a) => Number(a.idProyecto) === idPry && a.activo)
+        .map((a) => Number(a.idPasante))
+    );
+    return structuredClone(activos.filter((p) => idsAsignados.has(Number(p.idPasante))));
+  }
+
+  if (operacion === "proyectos.listar") {
+    return structuredClone(memoriaContratoLocal.proyectos);
+  }
+
+  if (operacion === "proyectos.guardar") {
+    const idEdicion = Number(datos?.idProyecto || 0);
+    const validacion = validarProyecto(datos, memoriaContratoLocal.proyectos, idEdicion);
+    if (!validacion.valido) {
+      throw Object.assign(
+        new Error(Object.values(validacion.errores)[0] || "Datos de proyecto inválidos."),
+        { status: 400, errores: validacion.errores }
+      );
+    }
+
+    const payload = validacion.payload;
+
+    if (idEdicion > 0) {
+      const existente = memoriaContratoLocal.proyectos.find(
+        (p) => Number(p.idProyecto) === idEdicion
+      );
+      if (!existente) {
+        throw Object.assign(new Error("El proyecto indicado no existe."), { status: 404 });
+      }
+      if (Number(payload.version) !== Number(existente.version)) {
+        throw Object.assign(
+          new Error(
+            "Conflicto de versión (409): el proyecto fue modificado por otro usuario. Se recargaron los datos actuales; revíselos antes de guardar."
+          ),
+          { status: 409 }
+        );
+      }
+
+      const actualizado = {
+        ...existente,
+        ...payload,
+        version: Number(existente.version) + 1
+      };
+      memoriaContratoLocal.proyectos = memoriaContratoLocal.proyectos.map((p) =>
+        Number(p.idProyecto) === idEdicion ? actualizado : p
+      );
+
+      // Si el proyecto pasa a 'Finalizado', C# cierra sus asignaciones activas conservando el historial
+      if (actualizado.estado === "Finalizado") {
+        memoriaContratoLocal.asignaciones = memoriaContratoLocal.asignaciones.map((a) =>
+          Number(a.idProyecto) === idEdicion && a.activo
+            ? {
+                ...a,
+                activo: false,
+                fechaFin: a.fechaFin || actualizado.fechaFin,
+                version: Number(a.version || 1) + 1
+              }
+            : a
+        );
+      }
+
+      registrarAuditoria(
+        "proyectos.guardar",
+        `Proyecto #${idEdicion}`,
+        `Actualización de '${actualizado.nombre}' (estado: ${actualizado.estado}, versión: ${actualizado.version}).`
+      );
+      return structuredClone(actualizado);
+    }
+
+    const nuevoId =
+      memoriaContratoLocal.proyectos.reduce(
+        (max, p) => Math.max(max, Number(p.idProyecto)),
+        100
+      ) + 1;
+    const creado = {
+      ...payload,
+      idProyecto: nuevoId,
+      version: 1
+    };
+    memoriaContratoLocal.proyectos = [creado, ...memoriaContratoLocal.proyectos];
+    registrarAuditoria(
+      "proyectos.guardar",
+      `Proyecto #${nuevoId}`,
+      `Alta de proyecto '${creado.nombre}' (${creado.codigo}) en estado '${creado.estado}'.`
+    );
+    return structuredClone(creado);
+  }
+
+  if (operacion === "asignaciones.listar") {
+    const idPry = datos?.idProyecto ? Number(datos.idProyecto) : null;
+    const idPas = datos?.id ? Number(datos.id) : null;
+    return structuredClone(
+      memoriaContratoLocal.asignaciones.filter((a) => {
+        if (idPry && Number(a.idProyecto) !== idPry) return false;
+        if (idPas && Number(a.idPasante) !== idPas) return false;
+        return true;
+      })
+    );
+  }
+
+  if (operacion === "asignaciones.guardar") {
+    const idEdicion = Number(datos?.idAsignacion || 0);
     const validacion = validarAsignacion(
       datos,
-      estado.proyectos,
-      estado.asignaciones,
+      memoriaContratoLocal.proyectos,
+      memoriaContratoLocal.asignaciones,
       idEdicion
     );
-
     if (!validacion.valido) {
-      return {
-        ok: false,
-        codigo: 400,
-        mensaje: Object.values(validacion.errores)[0] || "Datos de asignación inválidos.",
-        errores: validacion.errores
-      };
+      throw Object.assign(
+        new Error(Object.values(validacion.errores)[0] || "Asignación inválida."),
+        { status: 400, errores: validacion.errores }
+      );
     }
 
-    const personaObj = estado.personal.find((p) => Number(p.id) === Number(datos.idPersonal));
-    const proyectoObj = estado.proyectos.find((p) => Number(p.id) === Number(datos.idProyecto));
-    const etiquetaPersona = personaObj ? `${personaObj.nombres} ${personaObj.apellidos}` : `Persona #${datos.idPersonal}`;
-    const etiquetaProyecto = proyectoObj ? proyectoObj.nombre : `Proyecto #${datos.idProyecto}`;
+    const payload = validacion.payload;
 
-    if (idEdicion) {
-      estado.asignaciones = estado.asignaciones.map((a) =>
-        Number(a.id) === idEdicion
-          ? {
-              ...a,
-              idProyecto: Number(datos.idProyecto),
-              idPersonal: Number(datos.idPersonal),
-              funcion: datos.funcion.trim(),
-              fechaInicio: datos.fechaInicio,
-              fechaFin: datos.fechaFin,
-              estado: datos.estado || a.estado
-            }
-          : a
+    if (idEdicion > 0) {
+      const existente = memoriaContratoLocal.asignaciones.find(
+        (a) => Number(a.idAsignacion) === idEdicion
       );
-      agregarAuditoria(
-        "EDICION_ASIGNACION",
+      if (!existente) {
+        throw Object.assign(new Error("La asignación indicada no existe."), { status: 404 });
+      }
+      if (Number(payload.version) !== Number(existente.version)) {
+        throw Object.assign(
+          new Error(
+            "Conflicto de versión (409): la asignación fue modificada previamente. Vuelva a consultar y revise antes de guardar."
+          ),
+          { status: 409 }
+        );
+      }
+      const actualizada = {
+        ...existente,
+        ...payload,
+        version: Number(existente.version) + 1
+      };
+      memoriaContratoLocal.asignaciones = memoriaContratoLocal.asignaciones.map((a) =>
+        Number(a.idAsignacion) === idEdicion ? actualizada : a
+      );
+      registrarAuditoria(
+        "asignaciones.guardar",
         `Asignación #${idEdicion}`,
-        `Actualización de asignación de ${etiquetaPersona} en '${etiquetaProyecto}' (${datos.fechaInicio} al ${datos.fechaFin}).`
+        `Actualización de asignación (idProyecto: ${actualizada.idProyecto}, idPasante: ${actualizada.idPasante}, activo: ${actualizada.activo}, versión: ${actualizada.version}).`
       );
-    } else {
-      const nuevoId = estado.asignaciones.reduce((max, a) => Math.max(max, Number(a.id)), 300) + 1;
-      const nuevaAsignacion = {
-        id: nuevoId,
-        idProyecto: Number(datos.idProyecto),
-        idPersonal: Number(datos.idPersonal),
-        funcion: datos.funcion.trim(),
-        fechaInicio: datos.fechaInicio,
-        fechaFin: datos.fechaFin,
-        estado: "Activa"
-      };
-      estado.asignaciones = [nuevaAsignacion, ...estado.asignaciones];
-      agregarAuditoria(
-        "ALTA_ASIGNACION",
-        `Asignación #${nuevoId}`,
-        `Asignación de ${etiquetaPersona} como '${nuevaAsignacion.funcion}' en '${etiquetaProyecto}' (${nuevaAsignacion.fechaInicio} al ${nuevaAsignacion.fechaFin}).`
-      );
+      return structuredClone(actualizada);
     }
 
-    guardarEstadoLocal(estado);
-    return {
-      ok: true,
-      mensaje: idEdicion ? "Asignación actualizada correctamente." : "Asignación registrada correctamente.",
-      estado
+    const nuevoId =
+      memoriaContratoLocal.asignaciones.reduce(
+        (max, a) => Math.max(max, Number(a.idAsignacion)),
+        300
+      ) + 1;
+    const creada = {
+      ...payload,
+      idAsignacion: nuevoId,
+      version: 1
     };
+    memoriaContratoLocal.asignaciones = [creada, ...memoriaContratoLocal.asignaciones];
+    registrarAuditoria(
+      "asignaciones.guardar",
+      `Asignación #${nuevoId}`,
+      `Alta de asignación para idPasante ${creada.idPasante} en idProyecto ${creada.idProyecto} (${creada.rol}).`
+    );
+    return structuredClone(creada);
   }
 
-  if (tipoOperacion === "FINALIZAR_ASIGNACION") {
-    const idAsignacion = Number(datos?.idAsignacion || 0);
-    const existente = estado.asignaciones.find((a) => Number(a.id) === idAsignacion);
-    if (!existente) {
-      return { ok: false, codigo: 404, mensaje: "La asignación seleccionada no existe." };
-    }
-    estado.asignaciones = estado.asignaciones.map((a) =>
-      Number(a.id) === idAsignacion ? { ...a, estado: "Finalizada" } : a
+  if (operacion === "viaticos.listar") {
+    const inicio = datos?.inicio || "";
+    const fin = datos?.fin || "";
+    const idPas = datos?.id ? Number(datos.id) : null;
+    return structuredClone(
+      memoriaContratoLocal.viaticos.filter((v) => {
+        if (idPas && Number(v.idPasante) !== idPas) return false;
+        if (inicio && v.fecha < inicio) return false;
+        if (fin && v.fecha > fin) return false;
+        return true;
+      })
     );
-    agregarAuditoria(
-      "FINALIZAR_ASIGNACION",
-      `Asignación #${idAsignacion}`,
-      `Finalización de participación activa en Proyecto #${existente.idProyecto}. Se conserva en historial.`
-    );
-    guardarEstadoLocal(estado);
-    return {
-      ok: true,
-      mensaje: "Participación marcada como finalizada y conservada en el historial.",
-      estado
-    };
   }
 
-  if (tipoOperacion === "GUARDAR_VIATICO") {
-    const idEdicion = datos?.id ? Number(datos.id) : null;
-    const validacion = validarViatico(
-      datos,
-      estado.proyectos,
-      estado.asignaciones,
-      REGLAS_VIATICOS_VIGENTES
-    );
-
+  if (operacion === "viaticos.guardar") {
+    const validacion = validarViatico(datos, REGLAS_VIATICOS_VIGENTES);
     if (!validacion.valido) {
-      return {
-        ok: false,
-        codigo: 400,
-        mensaje: Object.values(validacion.errores)[0] || "El viático no cumple las reglas vigentes.",
-        errores: validacion.errores
-      };
-    }
-
-    const montoBase = Number(datos.monto);
-    const montoAdic = datos.esGastoAdicional ? Number(datos.montoAdicional || 0) : 0;
-
-    if (idEdicion) {
-      estado.viaticos = estado.viaticos.map((v) =>
-        Number(v.id) === idEdicion
-          ? {
-              ...v,
-              idProyecto: Number(datos.idProyecto),
-              idPersonal: Number(datos.idPersonal),
-              categoria: datos.categoria,
-              monto: montoBase,
-              esGastoAdicional: Boolean(datos.esGastoAdicional),
-              montoAdicional: montoAdic,
-              comprobante: String(datos.comprobante || "").trim(),
-              descripcion: datos.descripcion.trim(),
-              justificacionAdicional: datos.esGastoAdicional ? String(datos.justificacionAdicional || "").trim() : "",
-              fecha: datos.fecha
-            }
-          : v
-      );
-      agregarAuditoria(
-        "EDICION_VIATICO",
-        `Viático #${idEdicion}`,
-        `Actualización de viático (${datos.categoria}) por Bs ${(montoBase + montoAdic).toFixed(2)}.`
-      );
-    } else {
-      const nuevoId = estado.viaticos.reduce((max, v) => Math.max(max, Number(v.id)), 500) + 1;
-      const nuevoViatico = {
-        id: nuevoId,
-        idProyecto: Number(datos.idProyecto),
-        idPersonal: Number(datos.idPersonal),
-        categoria: datos.categoria,
-        monto: montoBase,
-        esGastoAdicional: Boolean(datos.esGastoAdicional),
-        montoAdicional: montoAdic,
-        comprobante: String(datos.comprobante || "").trim(),
-        descripcion: datos.descripcion.trim(),
-        justificacionAdicional: datos.esGastoAdicional ? String(datos.justificacionAdicional || "").trim() : "",
-        fecha: datos.fecha,
-        estado: "Vigente",
-        autorizadoPor: rolUsuario === "administrador" ? "Administrador" : "Operador"
-      };
-      estado.viaticos = [nuevoViatico, ...estado.viaticos];
-      agregarAuditoria(
-        "ALTA_VIATICO",
-        `Viático #${nuevoId}`,
-        `Registro de viático (${nuevoViatico.categoria}) por Bs ${(montoBase + montoAdic).toFixed(2)} en Proyecto #${nuevoViatico.idProyecto}.`
+      throw Object.assign(
+        new Error(Object.values(validacion.errores)[0] || "Viático inválido según reglas C#."),
+        { status: 400, errores: validacion.errores }
       );
     }
 
-    guardarEstadoLocal(estado);
-    return {
-      ok: true,
-      mensaje: idEdicion ? "Viático actualizado correctamente." : "Viático registrado correctamente.",
-      estado
+    const payload = validacion.payload;
+    if (payload.idViatico > 0) {
+      const existente = memoriaContratoLocal.viaticos.find(
+        (v) => Number(v.idViatico) === payload.idViatico
+      );
+      if (!existente) {
+        throw Object.assign(new Error("El viático indicado no existe."), { status: 404 });
+      }
+      const actualizado = { ...payload };
+      memoriaContratoLocal.viaticos = memoriaContratoLocal.viaticos.map((v) =>
+        Number(v.idViatico) === payload.idViatico ? actualizado : v
+      );
+      registrarAuditoria(
+        "viaticos.guardar",
+        `Viático #${payload.idViatico}`,
+        `Edición de viático para idPasante ${actualizado.idPasante}: monto Bs ${actualizado.monto.toFixed(2)}, gastoExtra Bs ${actualizado.gastoExtra.toFixed(2)}.`
+      );
+      return structuredClone(actualizado);
+    }
+
+    const nuevoId =
+      memoriaContratoLocal.viaticos.reduce(
+        (max, v) => Math.max(max, Number(v.idViatico)),
+        500
+      ) + 1;
+    const creado = {
+      ...payload,
+      idViatico: nuevoId
     };
-  }
-
-  if (tipoOperacion === "BAJA_VIATICO") {
-    const resultado = ejecutarBajaViatico({
-      idViatico: datos?.idViatico,
-      motivoBaja: datos?.motivoBaja,
-      rolUsuario,
-      viaticos: estado.viaticos
-    });
-
-    if (!resultado.ok) {
-      return resultado;
-    }
-
-    estado.viaticos = resultado.viaticos;
-    agregarAuditoria(
-      "BAJA_VIATICO",
-      `Viático #${datos.idViatico}`,
-      `${resultado.resumen} Motivo: ${datos.motivoBaja.trim()}`
+    memoriaContratoLocal.viaticos = [creado, ...memoriaContratoLocal.viaticos];
+    registrarAuditoria(
+      "viaticos.guardar",
+      `Viático #${nuevoId}`,
+      `Alta de viático para idPasante ${creado.idPasante}: monto Bs ${creado.monto.toFixed(2)}, gastoExtra Bs ${creado.gastoExtra.toFixed(2)}.`
     );
-    guardarEstadoLocal(estado);
+    return structuredClone(creado);
+  }
+
+  if (operacion === "viaticos.eliminar") {
+    const rolActual = sesionActualEnMemoria?.rol || "SuperAdmin";
+    if (!["SuperAdmin", "Admin"].includes(rolActual)) {
+      throw Object.assign(
+        new Error("No tiene permiso para eliminar viáticos. Se requiere rol Admin o SuperAdmin."),
+        { status: 403 }
+      );
+    }
+    const idEliminar = Number(datos?.id || 0);
+    const existente = memoriaContratoLocal.viaticos.find(
+      (v) => Number(v.idViatico) === idEliminar
+    );
+    if (!existente) {
+      throw Object.assign(new Error("El viático indicado no existe."), { status: 404 });
+    }
+    memoriaContratoLocal.viaticos = memoriaContratoLocal.viaticos.filter(
+      (v) => Number(v.idViatico) !== idEliminar
+    );
+    registrarAuditoria(
+      "viaticos.eliminar",
+      `Viático #${idEliminar}`,
+      `Eliminación física en C# de viático #${idEliminar} (Bs ${existente.monto.toFixed(2)}).`
+    );
+    return { eliminado: true, id: idEliminar };
+  }
+
+  if (operacion === "auditoria.listar") {
+    const rolActual = sesionActualEnMemoria?.rol || "SuperAdmin";
+    if (rolActual !== "SuperAdmin") {
+      throw Object.assign(
+        new Error("Solo SuperAdmin puede consultar auditoria.listar."),
+        { status: 403 }
+      );
+    }
+    return structuredClone(memoriaContratoLocal.auditoria.slice(0, 1000));
+  }
+
+  if (operacion === "reportes.individual") {
+    const idPasante = Number(datos?.id || 0);
+    const persona = memoriaContratoLocal.personal.find(
+      (p) => Number(p.idPasante) === idPasante
+    );
     return {
-      ok: true,
-      mensaje: resultado.resumen,
-      estado
+      personal: persona || null,
+      asistencias: [],
+      viaticos: memoriaContratoLocal.viaticos.filter(
+        (v) => Number(v.idPasante) === idPasante
+      ),
+      // Para mantener el contrato existente de C#, `proyectos` contiene asignaciones
+      proyectos: memoriaContratoLocal.asignaciones.filter(
+        (a) => Number(a.idPasante) === idPasante
+      )
     };
   }
 
-  return { ok: false, codigo: 400, mensaje: "Operación no soportada." };
+  if (operacion === "reportes.asignaciones") {
+    return ejecutarOperacionContratoEnMemoria("asignaciones.listar", datos, accessToken);
+  }
+
+  throw Object.assign(
+    new Error(`Operación '${operacion}' no disponible.`),
+    { status: 400 }
+  );
 }
 
 /**
- * Contrato público de enlace con el Módulo 04 (Historial y reportes).
- * Permite consultar los totales conciliados aplicando exactamente los mismos filtros.
+ * Ejecuta una operación contra `POST /api/backend` (modo real autenticado)
+ * o contra el contrato en memoria si el usuario activó el modo de prueba sin servidor C#.
  */
-export function obtenerDatosConciliadosParaReportes(filtros = {}) {
-  const estado = cargarEstadoLocal();
-  return calcularTotalesYResumenReportes({
-    proyectos: estado.proyectos,
-    personal: estado.personal,
-    asignaciones: estado.asignaciones,
-    viaticos: estado.viaticos,
-    filtros
-  });
+export async function ejecutarOperacionModulo05(
+  operacion,
+  datos = {},
+  { usarContratoMemoria = false, modoRed = "normal" } = {}
+) {
+  if (modoRed === "lenta") {
+    await new Promise((r) => setTimeout(r, 850));
+  }
+  if (modoRed === "error") {
+    throw Object.assign(
+      new Error("No se pudo completar la operación. Revise la conexión del backend."),
+      { status: 503 }
+    );
+  }
+
+  if (usarContratoMemoria) {
+    return ejecutarOperacionContratoEnMemoria(operacion, datos, tokenEnMemoria);
+  }
+
+  return llamar(operacion, datos, tokenEnMemoria);
 }
+
+/**
+ * Carga inicial o recarga completa de las colecciones del Módulo 05 usando las operaciones oficiales:
+ * `proyectos.listar`, `asignaciones.listar`, `viaticos.listar`, `personal.listar`, `auditoria.listar`.
+ */
+export async function cargarColeccionesModulo05(opciones = {}) {
+  const [proyectos, asignaciones, viaticos, personal] = await Promise.all([
+    ejecutarOperacionModulo05("proyectos.listar", {}, opciones),
+    ejecutarOperacionModulo05("asignaciones.listar", {}, opciones),
+    ejecutarOperacionModulo05("viaticos.listar", {}, opciones),
+    ejecutarOperacionModulo05("personal.listar", {}, opciones)
+  ]);
+
+  let auditoria = [];
+  try {
+    auditoria = await ejecutarOperacionModulo05("auditoria.listar", {}, opciones);
+  } catch {
+    // Si el usuario es Admin o Encargado (no SuperAdmin), auditoria.listar responde 403 según contrato
+    auditoria = [];
+  }
+
+  return {
+    proyectos: Array.isArray(proyectos) ? proyectos : [],
+    asignaciones: Array.isArray(asignaciones) ? asignaciones : [],
+    viaticos: Array.isArray(viaticos) ? viaticos : [],
+    personal: Array.isArray(personal) ? personal : [],
+    auditoria: Array.isArray(auditoria) ? auditoria : []
+  };
+}
+
+export {
+  prepararCierreProyecto,
+  prepararFinalizacionAsignacion,
+  calcularTotalesYResumenReportes
+};
