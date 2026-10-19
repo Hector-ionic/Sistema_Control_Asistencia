@@ -12,6 +12,7 @@ import {
   cargarColeccionesModulo05,
   obtenerTokenMemoria,
   obtenerSesionMemoria,
+  establecerTokenMemoria,
   cerrarSesionMemoria,
   reiniciarMemoriaSimulada
 } from "./services/operacionesService.js";
@@ -141,6 +142,7 @@ export default function Operaciones({ modulo }) {
       );
 
       const nuevoToken = respSesion.accessToken;
+      establecerTokenMemoria(nuevoToken, null);
       setTokenSesion(nuevoToken);
 
       const perfil = await ejecutarOperacionModulo05(
@@ -148,6 +150,7 @@ export default function Operaciones({ modulo }) {
         {},
         { usarContratoMemoria, modoRed }
       );
+      establecerTokenMemoria(nuevoToken, perfil);
       setUsuarioActual(perfil);
 
       await recargarColecciones(usarContratoMemoria, modoRed);

@@ -98,6 +98,12 @@ export async function llamar(operacion, datos = {}, accessToken = tokenEnMemoria
     );
   }
 
+  if (operacion === "sesion" && resultado?.accessToken) {
+    tokenEnMemoria = String(resultado.accessToken);
+  } else if (operacion === "sesion.actual" && resultado && typeof resultado === "object") {
+    sesionActualEnMemoria = resultado;
+  }
+
   return resultado;
 }
 
