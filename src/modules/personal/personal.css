@@ -1,5 +1,5 @@
-/* Estilos del Módulo 02 alineados 100% al sistema de diseño original de src/styles.css
-   Paleta nativa: #f5f6f1, #ffffff, #edf3e5, #e8efdf, #dce4d6, #cedbc7, #173c32, #1c624b, #64816a */
+/* Estilos del Módulo 02 alineados al sistema de diseño original de src/styles.css
+   y al contrato real de C# / PostgreSQL (/api/backend). */
 
 .mod-personal {
   display: flex;
@@ -24,7 +24,7 @@
   align-items: center;
 }
 
-/* Botones respetando el estilo de .volver en src/styles.css y mínimo táctil 44x44px */
+/* Controles táctiles >= 44x44px */
 .btn-personal {
   min-height: 44px;
   min-width: 44px;
@@ -74,7 +74,7 @@
   border-color: #cedbc7;
 }
 
-/* Tarjetas de indicadores usando la estética de .tarjeta y .aceptacion */
+/* Indicadores */
 .mod-personal-indicadores {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -110,7 +110,7 @@
   line-height: 1.4;
 }
 
-/* Avisos con el estilo de .aceptacion */
+/* Avisos */
 .aviso-personal {
   padding: 18px 22px;
   background: #edf3e5;
@@ -130,7 +130,7 @@
   border-color: #becdc2;
 }
 
-/* Controles de formulario respetando bordes #dce4d6 / #cedbc7 y foco #6eac84 */
+/* Formularios y filtros */
 .filtros-grid-personal {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr auto;
@@ -165,6 +165,12 @@
   background: #ffffff;
 }
 
+.input-personal:disabled,
+.select-personal:disabled {
+  background: #f5f6f1;
+  color: #73806f;
+}
+
 .input-personal:focus-visible,
 .select-personal:focus-visible {
   outline: 3px solid #6eac84;
@@ -187,7 +193,6 @@
   color: #73806f;
 }
 
-/* Formulario en 2 columnas en escritorio y 1 columna en móvil */
 .form-grid-personal {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -218,6 +223,33 @@
   letter-spacing: -0.4px;
 }
 
+.detalles-opcionales-personal {
+  grid-column: 1 / -1;
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.detalles-opcionales-personal summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: #173c32;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.foto-miniatura-personal {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #cedbc7;
+  margin-top: 8px;
+}
+
 .acciones-formulario {
   grid-column: 1 / -1;
   display: flex;
@@ -226,7 +258,7 @@
   margin-top: 8px;
 }
 
-/* Tarjetas de personas basadas en .modulos y .tarjeta de src/styles.css */
+/* Tarjetas de personas */
 .grid-fichas-personal {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -264,6 +296,12 @@
   flex-wrap: wrap;
 }
 
+.tarjeta-persona-identidad {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .tarjeta-persona h3 {
   font-size: 24px;
   font-weight: 600;
@@ -280,7 +318,6 @@
   line-height: 1.5;
 }
 
-/* Píldoras usando el mismo estilo de .estado y .etiquetas span */
 .pildora-estado {
   font-size: 11px;
   font-weight: 700;
@@ -298,7 +335,6 @@
   color: #73806f;
 }
 
-/* Seguimiento de pasantía con el estilo de .aceptacion (#edf3e5) */
 .bloque-progreso-nativo {
   padding: 18px 20px;
   background: #edf3e5;
@@ -378,6 +414,18 @@
   border-top: 1px solid #dce4d6;
 }
 
+/* Credencial imprimible */
+.credencial-tarjeta {
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid #cedbc7;
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* Responsividad móvil obligatoria (900px, 700px, 360px, 320px) */
 @media (max-width: 900px) {
   .mod-personal-indicadores {
@@ -445,7 +493,8 @@
   .mod-personal-acciones-top,
   .filtros-grid-personal,
   .acciones-tarjeta,
-  .acciones-formulario {
+  .acciones-formulario,
+  .no-imprimir {
     display: none !important;
   }
   .grid-fichas-personal {

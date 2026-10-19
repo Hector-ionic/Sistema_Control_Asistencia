@@ -1,414 +1,418 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ModuloBase from "../../components/ModuloBase.jsx";
 import {
+  TIPOS_CONTRATO,
+  TURNOS_CSHARP,
+  DIAS_TRABAJO_CSHARP,
+  HORAS_META_DEFECTO,
+  hoyBolivia,
+  fotoUrl,
+  formatearMinutosAcumulados,
+  calcularAvanceDesdeMinutos,
+  crearFichaVacia,
+  obtenerContratoBackend,
+  iniciarSesion,
+  obtenerSesionActual,
+  registrarEncargado,
+  listarPersonalActivo,
+  listarPersonalHistorico,
   obtenerPersonal,
-  registrarNuevaPersona,
-  editarFichaPersona,
-  cambiarEstadoFichaPersona,
-  actualizarProgresoPasantia
+  verificarExistePersonal,
+  guardarPersonal,
+  eliminarPersonal,
+  recalcularPersonal,
+  listarPersonalParaHoras,
+  listarFeriados,
+  listarDepartamentos,
+  listarMarcas,
+  consultarSeguimientoReal,
+  consultarIndividualReal
 } from "./personalApi.js";
 import "./personal.css";
 
-const TURNOS_OPCIONES = [
-  {
-    id: "manana",
-    nombre: "Turno mañana (08:00 a 12:30 · 4.5 h/día)",
-    horario: "08:00 - 12:30",
-    horasPorDia: 4.5
-  },
-  {
-    id: "tarde",
-    nombre: "Turno tarde (14:00 a 18:30 · 4.5 h/día)",
-    horario: "14:00 - 18:30",
-    horasPorDia: 4.5
-  },
-  {
-    id: "completo",
-    nombre: "Jornada completa (08:00 a 12:30 y 14:00 a 17:30 · 8 h/día)",
-    horario: "08:00 - 12:30 / 14:00 - 17:30",
-    horasPorDia: 8
-  },
-  {
-    id: "pasantia_6h",
-    nombre: "Turno pasantía continua (08:00 a 14:00 · 6 h/día)",
-    horario: "08:00 - 14:00",
-    horasPorDia: 6
-  }
-];
-
-function obtenerNombreTurno(turnoId) {
-  const encontrado = TURNOS_OPCIONES.find((t) => t.id === turnoId);
-  return encontrado ? encontrado.nombre : "Jornada completa (8 h/día)";
-}
-
-function fechaHoyISO() {
-  const hoy = new Date();
-  const yyyy = hoy.getFullYear();
-  const mm = String(hoy.getMonth() + 1).padStart(2, "0");
-  const dd = String(hoy.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function precalcularFinPasantia({
-  fechaInicio,
-  horasMeta = 600,
-  horasCumplidas = 0,
-  horasPorDia = 4.5,
-  diasFeriados = 0,
-  diasIncidencias = 0
+export default function Modulo({
+  modulo,
+  token: tokenExterno = "",
+  usuario: usuarioExterno = null
 }) {
-  const baseStr =
-    typeof fechaInicio === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaInicio)
-      ? fechaInicio
-      : fechaHoyISO();
-  const [anio, mes, dia] = baseStr.split("-").map(Number);
-  const cursor = new Date(Date.UTC(anio, mes - 1, dia));
+  // Token y sesión guardados únicamente en memoria (regla de seguridad del backend)
+  const [tokenMemoria, setTokenMemoria] = useState("");
+  const [usuarioMemoria, setUsuarioMemoria] = useState(null);
 
-  const meta = Math.max(1, Number(horasMeta) || 600);
-  const cumplidas = Math.max(0, Number(horasCumplidas) || 0);
-  const hDia = Math.max(0.5, Number(horasPorDia) || 4.5);
-  const feriados = Math.max(0, Math.trunc(Number(diasFeriados) || 0));
-  const incidencias = Math.max(0, Math.trunc(Number(diasIncidencias) || 0));
+  const token = tokenExterno || tokenMemoria;
+  const usuario = usuarioExterno || usuarioMemoria;
+  const esEncargado = usuario?.rol === "Encargado";
+  const esSuperAdmin = usuario?.rol === "SuperAdmin";
 
-  const diasRequeridos = Math.ceil(meta / hDia);
-  const totalDiasASumar = Math.max(0, diasRequeridos - 1 + feriados + incidencias);
-
-  while (cursor.getUTCDay() === 0 || cursor.getUTCDay() === 6) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  let restantes = totalDiasASumar;
-  while (restantes > 0) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    const d = cursor.getUTCDay();
-    if (d !== 0 && d !== 6) restantes -= 1;
-  }
-
-  const yyyy = cursor.getUTCFullYear();
-  const mm = String(cursor.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(cursor.getUTCDate()).padStart(2, "0");
-
-  const horasPendientes = Math.max(0, Math.round((meta - cumplidas) * 10) / 10);
-  const porcentaje = Math.min(100, Math.round((cumplidas / meta) * 1000) / 10);
-
-  return {
-    horasPendientes,
-    porcentaje,
-    jornadasRestantes: Math.ceil(horasPendientes / hDia),
-    fechaFinEstimada: `${yyyy}-${mm}-${dd}`
-  };
-}
-
-function crearEstadoFormularioInicial() {
-  return {
-    id: null,
-    nombres: "",
-    apellidos: "",
-    tipo: "pasante",
-    turno: "manana",
-    horasMeta: 600,
-    horasCumplidas: 0,
-    horasPorDia: 4.5,
-    fechaInicio: fechaHoyISO(),
-    diasFeriados: 0,
-    diasIncidencias: 0,
-    detalleIncidencias: ""
-  };
-}
-
-export default function Modulo({ modulo }) {
-  const [personas, setPersonas] = useState([]);
-  const [resumen, setResumen] = useState({
-    total: 0,
-    activos: 0,
-    bajas: 0,
-    planta: 0,
-    pasantes: 0
+  // Estado de autenticación y contrato
+  const [modoRegistroEncargado, setModoRegistroEncargado] = useState(false);
+  const [credencialesForm, setCredencialesForm] = useState({
+    usuario: "",
+    password: ""
   });
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const [mensajeExito, setMensajeExito] = useState("");
-  const [mensajeError, setMensajeError] = useState("");
+  const [operacionesContrato, setOperacionesContrato] = useState([]);
 
-  // Filtros de búsqueda
-  const [busqueda, setBusqueda] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("todos");
-  const [filtroEstado, setFiltroEstado] = useState("todos");
+  // Datos reales provenientes de /api/backend
+  const [personal, setPersonal] = useState([]);
+  const [seguimientoMap, setSeguimientoMap] = useState({});
+  const [departamentos, setDepartamentos] = useState([]);
+  const [feriados, setFeriados] = useState([]);
+  const [marcas, setMarcas] = useState([]);
 
-  // Estado del formulario (Alta / Edición)
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [form, setForm] = useState(crearEstadoFormularioInicial);
-  const [erroresForm, setErroresForm] = useState({});
-
-  // Acciones en tarjetas (historial, baja, progreso de pasante)
-  const [historialAbiertoId, setHistorialAbiertoId] = useState(null);
-  const [bajaActivaId, setBajaActivaId] = useState(null);
-  const [motivoBajaInput, setMotivoBajaInput] = useState("");
-  const [errorMotivoBaja, setErrorMotivoBaja] = useState("");
-
-  const [progresoActivoId, setProgresoActivoId] = useState(null);
-  const [formProgreso, setFormProgreso] = useState({
-    horasSumar: 4.5,
-    diasFeriados: 0,
-    diasIncidencias: 0,
-    motivo: ""
-  });
-
-  // Mostrar/ocultar alcance técnico base (ModuloBase)
+  // Estados de interfaz
+  const [ocupado, setOcupado] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [error, setError] = useState("");
   const [verAlcanceBase, setVerAlcanceBase] = useState(false);
 
-  async function cargarDatos(filtrosActuales = {}) {
-    setCargando(true);
-    setMensajeError("");
+  // Filtros de consulta
+  const [modoListado, setModoListado] = useState("historico"); // 'activos' | 'historico'
+  const [idProyectoFiltro, setIdProyectoFiltro] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroTipoContrato, setFiltroTipoContrato] = useState("todos");
+  const [filtroEstadoActivo, setFiltroEstadoActivo] = useState("todos");
+  const [codigoVerificar, setCodigoVerificar] = useState("");
+
+  // Formulario de Alta / Edición con esquema exacto C#
+  const [fichaEdicion, setFichaEdicion] = useState(null);
+  const [fichaOriginalEdicion, setFichaOriginalEdicion] = useState(null);
+  const [erroresFicha, setErroresFicha] = useState({});
+
+  // Detalle individual real (reportes.individual) y credencial imprimible
+  const [reporteIndividual, setReporteIndividual] = useState(null);
+  const [credencialActiva, setCredencialActiva] = useState(null);
+
+  function cerrarSesionLocal() {
+    setTokenMemoria("");
+    setUsuarioMemoria(null);
+    setPersonal([]);
+    setSeguimientoMap({});
+    setFichaEdicion(null);
+    setFichaOriginalEdicion(null);
+    setReporteIndividual(null);
+    setCredencialActiva(null);
+  }
+
+  async function ejecutarTarea(accion) {
+    if (ocupado) return;
+    setOcupado(true);
+    setError("");
+    setAviso("");
     try {
-      const respuesta = await obtenerPersonal({
-        q: filtrosActuales.q !== undefined ? filtrosActuales.q : busqueda,
-        tipo: filtrosActuales.tipo !== undefined ? filtrosActuales.tipo : filtroTipo,
-        estado:
-          filtrosActuales.estado !== undefined ? filtrosActuales.estado : filtroEstado
-      });
-      setPersonas(respuesta.items || []);
-      if (respuesta.resumen) {
-        setResumen(respuesta.resumen);
-      }
+      await accion();
     } catch (err) {
-      setMensajeError(
-        err.message || "Error al conectar con /api/personal. Verifique el servidor."
-      );
+      setError(err.message || "No se pudo completar la operación.");
+      if (err.errores) {
+        setErroresFicha(err.errores);
+      }
+      if (err.status === 401) {
+        cerrarSesionLocal();
+      }
     } finally {
-      setCargando(false);
+      setOcupado(false);
     }
+  }
+
+  // Verificar el contrato público GET /api/backend al montar el módulo
+  useEffect(() => {
+    let activo = true;
+    obtenerContratoBackend()
+      .then((contrato) => {
+        if (activo && Array.isArray(contrato?.modulos?.personal)) {
+          setOperacionesContrato(contrato.modulos.personal);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  async function cargarDatosModulo(
+    tokenActivo = token,
+    usuarioActivo = usuario,
+    modo = modoListado,
+    idProy = idProyectoFiltro
+  ) {
+    if (!tokenActivo || !usuarioActivo) return;
+
+    if (usuarioActivo.rol === "Encargado") {
+      const listaHoras = await listarPersonalParaHoras(tokenActivo);
+      setPersonal(Array.isArray(listaHoras) ? listaHoras : []);
+      return;
+    }
+
+    const promesas = [
+      modo === "activos"
+        ? listarPersonalActivo(tokenActivo, idProy || undefined)
+        : listarPersonalHistorico(tokenActivo),
+      listarDepartamentos(tokenActivo).catch(() => []),
+      listarFeriados(tokenActivo).catch(() => []),
+      listarMarcas(tokenActivo).catch(() => []),
+      consultarSeguimientoReal(
+        { idProyecto: idProy ? Number(idProy) : null },
+        tokenActivo
+      ).catch(() => [])
+    ];
+
+    const [
+      listaPersonal,
+      listaDeptos,
+      listaFeriados,
+      listaMarcas,
+      listaSeguimiento
+    ] = await Promise.all(promesas);
+
+    setPersonal(Array.isArray(listaPersonal) ? listaPersonal : []);
+    setDepartamentos(Array.isArray(listaDeptos) ? listaDeptos : []);
+    setFeriados(Array.isArray(listaFeriados) ? listaFeriados : []);
+    setMarcas(Array.isArray(listaMarcas) ? listaMarcas : []);
+
+    // Mapear minutos reales trabajados por idPasante o codigo desde reportes.seguimiento
+    const mapa = {};
+    if (Array.isArray(listaSeguimiento)) {
+      for (const item of listaSeguimiento) {
+        const claveId = item.idPasante ?? item.id;
+        const claveCod = item.codigo;
+        const minutos =
+          item.minutosTotales ??
+          item.minutosTrabajados ??
+          item.minutosPeriodo ??
+          0;
+        if (claveId !== undefined && claveId !== null) {
+          mapa[`id:${claveId}`] = minutos;
+        }
+        if (claveCod) {
+          mapa[`cod:${claveCod}`] = minutos;
+        }
+      }
+    }
+    setSeguimientoMap(mapa);
   }
 
   useEffect(() => {
-    cargarDatos({ q: busqueda, tipo: filtroTipo, estado: filtroEstado });
-  }, [busqueda, filtroTipo, filtroEstado]);
-
-  const vistaPreviaPasantia = useMemo(() => {
-    if (form.tipo !== "pasante") return null;
-    return precalcularFinPasantia({
-      fechaInicio: form.fechaInicio,
-      horasMeta: form.horasMeta,
-      horasCumplidas: form.horasCumplidas,
-      horasPorDia: form.horasPorDia,
-      diasFeriados: form.diasFeriados,
-      diasIncidencias: form.diasIncidencias
-    });
-  }, [
-    form.tipo,
-    form.fechaInicio,
-    form.horasMeta,
-    form.horasCumplidas,
-    form.horasPorDia,
-    form.diasFeriados,
-    form.diasIncidencias
-  ]);
-
-  function abrirAltaNueva() {
-    setForm(crearEstadoFormularioInicial());
-    setErroresForm({});
-    setMensajeExito("");
-    setMensajeError("");
-    setMostrarFormulario(true);
-  }
-
-  function abrirEdicion(persona) {
-    setErroresForm({});
-    setMensajeExito("");
-    setMensajeError("");
-    setForm({
-      id: persona.id,
-      nombres: persona.nombres || "",
-      apellidos: persona.apellidos || "",
-      tipo: persona.tipo || "planta",
-      turno:
-        persona.turno ||
-        (persona.tipo === "pasante" ? "manana" : "completo"),
-      horasMeta: persona.pasantia?.horasMeta ?? 600,
-      horasCumplidas: persona.pasantia?.horasCumplidas ?? 0,
-      horasPorDia: persona.pasantia?.horasPorDia ?? 4.5,
-      fechaInicio: persona.pasantia?.fechaInicio || persona.fechaAlta || fechaHoyISO(),
-      diasFeriados: persona.pasantia?.diasFeriados ?? 0,
-      diasIncidencias: persona.pasantia?.diasIncidencias ?? 0,
-      detalleIncidencias: persona.pasantia?.detalleIncidencias ?? ""
-    });
-    setMostrarFormulario(true);
-  }
-
-  function manejarCambioTipo(nuevoTipo) {
-    const turnoSugerido = nuevoTipo === "pasante" ? "manana" : "completo";
-    const infoTurno = TURNOS_OPCIONES.find((t) => t.id === turnoSugerido);
-    setForm((prev) => ({
-      ...prev,
-      tipo: nuevoTipo,
-      turno: turnoSugerido,
-      horasMeta: nuevoTipo === "pasante" ? 600 : 0,
-      horasPorDia: infoTurno ? infoTurno.horasPorDia : 4.5
-    }));
-  }
-
-  function manejarCambioTurno(nuevoTurno) {
-    const infoTurno = TURNOS_OPCIONES.find((t) => t.id === nuevoTurno);
-    setForm((prev) => ({
-      ...prev,
-      turno: nuevoTurno,
-      horasPorDia: infoTurno ? infoTurno.horasPorDia : prev.horasPorDia
-    }));
-  }
-
-  function validarFormularioLocal() {
-    const nuevosErrores = {};
-    if (!form.nombres.trim() || form.nombres.trim().length < 2) {
-      nuevosErrores.nombres = "Ingrese los nombres (mínimo 2 caracteres).";
+    if (token && usuario) {
+      ejecutarTarea(() =>
+        cargarDatosModulo(token, usuario, modoListado, idProyectoFiltro)
+      );
     }
-    if (!form.apellidos.trim() || form.apellidos.trim().length < 2) {
-      nuevosErrores.apellidos = "Ingrese los apellidos (mínimo 2 caracteres).";
-    }
-    if (form.tipo !== "planta" && form.tipo !== "pasante") {
-      nuevosErrores.tipo = "Seleccione Personal de planta o Pasante.";
-    }
-    if (form.tipo === "pasante") {
-      if (Number(form.horasCumplidas) < 0) {
-        nuevosErrores.horasCumplidas = "Las horas cumplidas no pueden ser negativas.";
-      }
-      if (Number(form.horasPorDia) < 0.5 || Number(form.horasPorDia) > 12) {
-        nuevosErrores.horasPorDia = "Ingrese entre 0.5 y 12 horas por jornada.";
-      }
-    }
-    setErroresForm(nuevosErrores);
-    return Object.keys(nuevosErrores).length === 0;
-  }
+  }, [token, usuario, modoListado]);
 
-  async function guardarPersona(e) {
+  async function manejarAcceso(e) {
     e.preventDefault();
-    setMensajeExito("");
-    setMensajeError("");
-
-    if (!validarFormularioLocal()) return;
-
-    setGuardando(true);
-    try {
-      const payload = {
-        nombres: form.nombres.trim(),
-        apellidos: form.apellidos.trim(),
-        tipo: form.tipo,
-        turno: form.turno
-      };
-
-      if (form.tipo === "pasante") {
-        payload.horasMeta = Number(form.horasMeta) || 600;
-        payload.horasCumplidas = Number(form.horasCumplidas) || 0;
-        payload.horasPorDia = Number(form.horasPorDia) || 4.5;
-        payload.fechaInicio = form.fechaInicio;
-        payload.diasFeriados = Number(form.diasFeriados) || 0;
-        payload.diasIncidencias = Number(form.diasIncidencias) || 0;
-        payload.detalleIncidencias = form.detalleIncidencias.trim();
+    const { usuario: usr, password: pwd } = credencialesForm;
+    await ejecutarTarea(async () => {
+      if (modoRegistroEncargado) {
+        await registrarEncargado(usr.trim(), pwd);
+        setModoRegistroEncargado(false);
+        setAviso("Cuenta de encargado creada. Ahora puede iniciar sesión.");
+        return;
       }
-
-      if (form.id) {
-        const res = await editarFichaPersona(form.id, payload);
-        setMensajeExito(
-          `Ficha actualizada: ${res.persona.nombreCompleto} (${res.persona.codigo}).`
-        );
-      } else {
-        const res = await registrarNuevaPersona(payload);
-        setMensajeExito(
-          `Alta registrada con código automático ${res.persona.codigo}: ${res.persona.nombreCompleto}.`
-        );
-      }
-
-      setMostrarFormulario(false);
-      setForm(crearEstadoFormularioInicial());
-      await cargarDatos();
-    } catch (err) {
-      if (err.errores) {
-        setErroresForm(err.errores);
-      }
-      setMensajeError(err.message || "No se pudo guardar el registro.");
-    } finally {
-      setGuardando(false);
-    }
+      const sesion = await iniciarSesion(usr.trim(), pwd);
+      const actual = await obtenerSesionActual(sesion.accessToken);
+      setTokenMemoria(sesion.accessToken);
+      setUsuarioMemoria(actual);
+      setCredencialesForm({ usuario: "", password: "" });
+      await cargarDatosModulo(sesion.accessToken, actual, modoListado, idProyectoFiltro);
+    });
   }
 
-  async function confirmarBajaPersona(persona) {
-    if (!motivoBajaInput.trim()) {
-      setErrorMotivoBaja("Debe indicar el motivo de la baja para el historial.");
+  function iniciarNuevaFicha() {
+    setErroresFicha({});
+    setFichaOriginalEdicion(null);
+    setFichaEdicion(crearFichaVacia());
+  }
+
+  async function abrirEdicionCompleta(personaResumen) {
+    setErroresFicha({});
+    await ejecutarTarea(async () => {
+      const idOCodigo = personaResumen.idPasante ?? personaResumen.codigo;
+      const leida = idOCodigo
+        ? await obtenerPersonal(idOCodigo, token)
+        : personaResumen;
+      const base = leida || personaResumen;
+      setFichaOriginalEdicion(base);
+      setFichaEdicion({
+        ...crearFichaVacia(),
+        ...base,
+        horasRequeridas:
+          base.tipoContrato === "Pasante"
+            ? Number(base.horasRequeridas) || HORAS_META_DEFECTO
+            : 0,
+        fechaInicio: (base.fechaInicio || hoyBolivia()).slice(0, 10)
+      });
+    });
+  }
+
+  async function manejarFotoArchivo(archivo) {
+    if (!archivo) return;
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(archivo.type) ||
+      archivo.size > 3 * 1024 * 1024
+    ) {
+      setError("Seleccione una imagen JPG, PNG o WebP de hasta 3 MB.");
       return;
     }
-    setGuardando(true);
-    setErrorMotivoBaja("");
     try {
-      await cambiarEstadoFichaPersona(persona.id, {
-        estado: "baja",
-        motivo: motivoBajaInput.trim()
+      const base64 = await new Promise((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve(String(lector.result).split(",")[1] || "");
+        lector.onerror = reject;
+        lector.readAsDataURL(archivo);
       });
-      setBajaActivaId(null);
-      setMotivoBajaInput("");
-      setMensajeExito(
-        `Baja registrada para ${persona.nombreCompleto} (${persona.codigo}) conservando su historial.`
-      );
-      await cargarDatos();
-    } catch (err) {
-      setMensajeError(err.message || "No se pudo procesar la baja.");
-    } finally {
-      setGuardando(false);
+      setFichaEdicion((prev) => ({ ...prev, foto: base64 }));
+    } catch {
+      setError("No se pudo leer el archivo de imagen.");
     }
+  }
+
+  async function guardarFichaFormulario(e) {
+    e.preventDefault();
+    if (!fichaEdicion) return;
+    setErroresFicha({});
+    await ejecutarTarea(async () => {
+      const guardada = await guardarPersonal(fichaEdicion, token, {
+        usuarioActual: usuario,
+        fichaExistente: fichaOriginalEdicion
+      });
+      setFichaEdicion(null);
+      setFichaOriginalEdicion(null);
+      await cargarDatosModulo();
+      setAviso(
+        `Ficha guardada correctamente (${
+          guardada?.codigo || guardada?.nombres || "Personal"
+        }). La fecha de fin es calculada por el servidor C#.`
+      );
+    });
+  }
+
+  async function darDeBajaLogica(persona) {
+    if (!persona?.idPasante) return;
+    await ejecutarTarea(async () => {
+      await eliminarPersonal(persona.idPasante, token);
+      await cargarDatosModulo();
+      setAviso(
+        `Baja lógica aplicada a ${persona.nombres} ${persona.apellidos} (${persona.codigo}) conservando su historial.`
+      );
+    });
   }
 
   async function reactivarPersona(persona) {
-    setGuardando(true);
-    setMensajeError("");
-    try {
-      await cambiarEstadoFichaPersona(persona.id, {
-        estado: "activo",
-        motivo: "Reactivación desde ficha de personal"
-      });
-      setMensajeExito(
-        `Se recuperó y reactivó la ficha de ${persona.nombreCompleto} (${persona.codigo}).`
+    await ejecutarTarea(async () => {
+      // Regla de BACKEND-PARA-LOS-5-MODULOS.md:
+      // "La reactivación requiere una ficha completa con activo: true y permisos de personal."
+      const idOCodigo = persona.idPasante ?? persona.codigo;
+      const fichaCompleta = (await obtenerPersonal(idOCodigo, token)) || persona;
+      await guardarPersonal(
+        {
+          ...fichaCompleta,
+          activo: true
+        },
+        token,
+        {
+          usuarioActual: usuario,
+          fichaExistente: fichaCompleta
+        }
       );
-      await cargarDatos();
-    } catch (err) {
-      setMensajeError(err.message || "No se pudo reactivar el registro.");
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  function abrirCajaProgreso(persona) {
-    setProgresoActivoId(persona.id);
-    setFormProgreso({
-      horasSumar: persona.pasantia?.horasPorDia || 4.5,
-      diasFeriados: persona.pasantia?.diasFeriados || 0,
-      diasIncidencias: persona.pasantia?.diasIncidencias || 0,
-      motivo: ""
+      await cargarDatosModulo();
+      setAviso(
+        `Persona reactivada (${fichaCompleta.codigo}) conservando su ficha completa e historial.`
+      );
     });
   }
 
-  async function guardarProgresoPasante(persona) {
-    setGuardando(true);
-    setMensajeError("");
-    try {
-      await actualizarProgresoPasantia(persona.id, {
-        horasSumar: Number(formProgreso.horasSumar) || 0,
-        diasFeriados: Number(formProgreso.diasFeriados) || 0,
-        diasIncidencias: Number(formProgreso.diasIncidencias) || 0,
-        motivo:
-          formProgreso.motivo.trim() || "Registro de avance / ajuste de pasantía"
-      });
-      setProgresoActivoId(null);
-      setMensajeExito(
-        `Progreso de pasantía actualizado para ${persona.nombreCompleto}.`
+  async function recalcularFinPasante(persona) {
+    if (!persona?.idPasante) return;
+    await ejecutarTarea(async () => {
+      const resultado = await recalcularPersonal(persona.idPasante, token);
+      await cargarDatosModulo();
+      setAviso(
+        `Fecha de finalización recalculada en C# para ${persona.nombres} ${
+          persona.apellidos
+        }${resultado?.fechaFin ? `: ${String(resultado.fechaFin).slice(0, 10)}` : "."}`
       );
-      await cargarDatos();
-    } catch (err) {
-      setMensajeError(err.message || "No se pudo actualizar el progreso.");
-    } finally {
-      setGuardando(false);
-    }
+    });
   }
+
+  async function abrirDetalleIndividual(persona) {
+    if (!persona?.idPasante) return;
+    await ejecutarTarea(async () => {
+      const detalle = await consultarIndividualReal(persona.idPasante, token);
+      setReporteIndividual(detalle);
+    });
+  }
+
+  async function comprobarCodigoExistente() {
+    if (!codigoVerificar.trim()) return;
+    await ejecutarTarea(async () => {
+      const existe = await verificarExistePersonal(codigoVerificar.trim(), token);
+      setAviso(
+        existe
+          ? `El código "${codigoVerificar.trim()}" SÍ existe en la base de datos.`
+          : `El código "${codigoVerificar.trim()}" NO está registrado.`
+      );
+    });
+  }
+
+  const personalFiltrado = useMemo(() => {
+    const q = busqueda
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    return personal.filter((p) => {
+      if (
+        filtroTipoContrato !== "todos" &&
+        p.tipoContrato !== filtroTipoContrato
+      ) {
+        return false;
+      }
+      if (filtroEstadoActivo === "activos" && p.activo === false) {
+        return false;
+      }
+      if (filtroEstadoActivo === "inactivos" && p.activo !== false) {
+        return false;
+      }
+      if (q) {
+        const texto = [
+          p.codigo,
+          p.nombres,
+          p.apellidos,
+          p.nombreCompleto,
+          p.ci,
+          p.nombreDepartamento,
+          p.universidad,
+          p.carrera
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        if (!texto.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [personal, busqueda, filtroTipoContrato, filtroEstadoActivo]);
+
+  const indicadores = useMemo(() => {
+    let activos = 0;
+    let inactivos = 0;
+    let planta = 0;
+    let pasantes = 0;
+    for (const p of personal) {
+      if (p.activo === false) inactivos += 1;
+      else activos += 1;
+      if (p.tipoContrato === "Personal de planta") planta += 1;
+      else if (p.tipoContrato === "Pasante") pasantes += 1;
+    }
+    return { total: personal.length, activos, inactivos, planta, pasantes };
+  }, [personal]);
 
   return (
     <div className="mod-personal">
-      {/* Cabecera principal usando exactamente la clase nativa .detalle-modulo de src/styles.css */}
+      {/* Cabecera principal respetando el diseño .detalle-modulo */}
       <section className="detalle-modulo">
         <div className="mod-personal-cabecera-top">
           <div>
@@ -419,783 +423,1044 @@ export default function Modulo({ modulo }) {
                 "Registro sencillo, ficha de personal y seguimiento exclusivo de pasantes."}
             </p>
             <div className="etiquetas">
-              <span>Alta mínima: nombres, apellidos y tipo</span>
-              <span>Planta: sin meta de horas</span>
-              <span>Pasantes: 600 h por defecto</span>
-              <span>Turno mañana: 08:00 a 12:30 (4.5 h)</span>
+              <span>Contrato conectado: POST /api/backend</span>
+              <span>Tipos C#: Pasante (600 h) y Personal de planta (0 h)</span>
+              <span>
+                {operacionesContrato.length > 0
+                  ? `${operacionesContrato.length} operaciones activas en contrato`
+                  : "Autenticación Bearer en memoria"}
+              </span>
             </div>
           </div>
 
-          <div className="mod-personal-acciones-top">
-            <button
-              type="button"
-              className="btn-personal btn-personal-primario"
-              onClick={abrirAltaNueva}
-            >
-              + Registrar persona
-            </button>
+          <div className="mod-personal-acciones-top no-imprimir">
+            {usuario && !esEncargado && (
+              <button
+                type="button"
+                className="btn-personal btn-personal-primario"
+                onClick={iniciarNuevaFicha}
+                disabled={ocupado}
+              >
+                + Nueva persona
+              </button>
+            )}
+            {usuario && (
+              <button
+                type="button"
+                className="btn-personal"
+                onClick={() =>
+                  ejecutarTarea(() =>
+                    cargarDatosModulo(token, usuario, modoListado, idProyectoFiltro)
+                  )
+                }
+                disabled={ocupado}
+              >
+                Actualizar datos
+              </button>
+            )}
             <button
               type="button"
               className="btn-personal"
               onClick={() => setVerAlcanceBase((v) => !v)}
             >
-              {verAlcanceBase ? "Ocultar alcance base" : "Ver alcance y criterios"}
+              {verAlcanceBase ? "Ocultar alcance" : "Ver alcance del módulo"}
             </button>
+            {usuario && !tokenExterno && (
+              <button
+                type="button"
+                className="btn-personal btn-personal-baja"
+                onClick={cerrarSesionLocal}
+              >
+                Cerrar sesión ({usuario.nombreUsuario} · {usuario.rol})
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="mod-personal-indicadores" aria-label="Indicadores del módulo">
-          <div className="caja-indicador destacada">
-            <span className="numero">PERSONAL ACTIVO</span>
-            <strong className="valor-grande">{resumen.activos}</strong>
-            <span className="subtexto">De {resumen.total} fichas registradas</span>
+        {usuario && (
+          <div className="mod-personal-indicadores" aria-label="Resumen de personal">
+            <div className="caja-indicador destacada">
+              <span className="numero">PERSONAS ACTIVAS</span>
+              <strong className="valor-grande">{indicadores.activos}</strong>
+              <span className="subtexto">De {indicadores.total} cargadas</span>
+            </div>
+            <div className="caja-indicador">
+              <span className="numero">PERSONAL DE PLANTA</span>
+              <strong className="valor-grande">{indicadores.planta}</strong>
+              <span className="subtexto">horasRequeridas: 0 (sin meta)</span>
+            </div>
+            <div className="caja-indicador">
+              <span className="numero">PASANTES</span>
+              <strong className="valor-grande">{indicadores.pasantes}</strong>
+              <span className="subtexto">Meta por defecto: 600 horas</span>
+            </div>
+            <div className="caja-indicador">
+              <span className="numero">FERIADOS / ÁREAS</span>
+              <strong className="valor-grande">
+                {feriados.length} / {departamentos.length}
+              </strong>
+              <span className="subtexto">
+                {marcas.length} marcas · {indicadores.inactivos} bajas en histórico
+              </span>
+            </div>
           </div>
-          <div className="caja-indicador">
-            <span className="numero">PERSONAL DE PLANTA</span>
-            <strong className="valor-grande">{resumen.planta}</strong>
-            <span className="subtexto">Sin meta de horas ni fin de pasantía</span>
-          </div>
-          <div className="caja-indicador">
-            <span className="numero">PASANTES</span>
-            <strong className="valor-grande">{resumen.pasantes}</strong>
-            <span className="subtexto">Meta reglamentaria: 600 horas</span>
-          </div>
-          <div className="caja-indicador">
-            <span className="numero">BAJAS CONSERVADAS</span>
-            <strong className="valor-grande">{resumen.bajas}</strong>
-            <span className="subtexto">Con historial auditable y recuperación</span>
-          </div>
-        </div>
+        )}
 
         <p className="ruta" style={{ marginTop: "20px", marginBottom: 0 }}>
-          Código del módulo: src/modules/personal/ · API conectada: /api/personal
+          Código del módulo: src/modules/personal/ · Endpoint oficial: /api/backend
         </p>
       </section>
 
       {verAlcanceBase && modulo && <ModuloBase modulo={modulo} />}
 
-      {mensajeExito && (
-        <div className="aviso-personal" role="status">
-          <span>
-            <strong>Confirmación:</strong> {mensajeExito}
-          </span>
+      {aviso && (
+        <div className="aviso-personal no-imprimir" role="status">
+          <span>{aviso}</span>
           <button
             type="button"
             className="btn-personal"
-            onClick={() => setMensajeExito("")}
+            onClick={() => setAviso("")}
           >
             Cerrar
           </button>
         </div>
       )}
 
-      {mensajeError && (
-        <div className="aviso-personal aviso-alerta" role="alert">
+      {error && (
+        <div className="aviso-personal aviso-alerta no-imprimir" role="alert">
           <span>
-            <strong>Atención:</strong> {mensajeError}
+            <strong>Atención:</strong> {error}
           </span>
           <button
             type="button"
             className="btn-personal"
-            onClick={() => setMensajeError("")}
+            onClick={() => setError("")}
           >
             Cerrar
           </button>
         </div>
       )}
 
-      {/* Formulario de Alta / Edición dentro de contenedor .detalle-modulo */}
-      {mostrarFormulario && (
-        <section
-          className="detalle-modulo"
-          aria-label={form.id ? "Editar ficha de personal" : "Alta de personal"}
-        >
-          <span className="numero">
-            {form.id ? "EDICIÓN DE FICHA" : "ALTA MÍNIMA DE PERSONAL"}
-          </span>
-          <h3 style={{ marginTop: "10px", marginBottom: "8px", fontSize: "24px" }}>
-            {form.id
-              ? "Editar datos de personal"
-              : "Registrar persona (Nombres, Apellidos y Tipo)"}
+      {/* Si no hay sesión autenticada en memoria, solicitar ingreso contra /api/backend */}
+      {!usuario ? (
+        <section className="detalle-modulo" aria-label="Autenticación requerida">
+          <span className="numero">AUTENTICACIÓN REQUERIDA (/API/BACKEND)</span>
+          <h3>
+            {modoRegistroEncargado
+              ? "Crear cuenta de Encargado"
+              : "Iniciar sesión para gestionar personal"}
           </h3>
-          <p style={{ marginTop: 0 }}>
-            {form.id
-              ? "Los cambios respetan el historial previo y los datos sincronizados del escritorio."
-              : "El código identificador (PER-XXX) se genera automáticamente."}
+          <p>
+            Las operaciones del Módulo 02 se validan con token Bearer en memoria
+            contra el servidor de reglas C# y la base compartida PostgreSQL.
           </p>
 
-          <form className="form-grid-personal" onSubmit={guardarPersona} noValidate>
+          <form className="form-grid-personal" onSubmit={manejarAcceso}>
             <div className="campo-grupo">
-              <label htmlFor="campo-nombres">Nombres *</label>
+              <label htmlFor="login-usuario-personal">Usuario *</label>
               <input
-                id="campo-nombres"
+                id="login-usuario-personal"
                 className="input-personal"
                 type="text"
-                placeholder="Ej. María Elena"
-                value={form.nombres}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, nombres: e.target.value }))
-                }
                 required
+                maxLength={50}
+                autoComplete="username"
+                value={credencialesForm.usuario}
+                onChange={(e) =>
+                  setCredencialesForm((p) => ({ ...p, usuario: e.target.value }))
+                }
               />
-              {erroresForm.nombres && (
-                <span className="error-campo">{erroresForm.nombres}</span>
-              )}
             </div>
 
             <div className="campo-grupo">
-              <label htmlFor="campo-apellidos">Apellidos *</label>
+              <label htmlFor="login-password-personal">Contraseña *</label>
               <input
-                id="campo-apellidos"
+                id="login-password-personal"
                 className="input-personal"
-                type="text"
-                placeholder="Ej. Gutiérrez Flores"
-                value={form.apellidos}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, apellidos: e.target.value }))
-                }
+                type="password"
                 required
+                minLength={modoRegistroEncargado ? 8 : 1}
+                autoComplete={
+                  modoRegistroEncargado ? "new-password" : "current-password"
+                }
+                value={credencialesForm.password}
+                onChange={(e) =>
+                  setCredencialesForm((p) => ({ ...p, password: e.target.value }))
+                }
               />
-              {erroresForm.apellidos && (
-                <span className="error-campo">{erroresForm.apellidos}</span>
-              )}
             </div>
-
-            <div className="campo-grupo">
-              <label htmlFor="campo-tipo">Tipo de personal *</label>
-              <select
-                id="campo-tipo"
-                className="select-personal"
-                value={form.tipo}
-                onChange={(e) => manejarCambioTipo(e.target.value)}
-              >
-                <option value="pasante">Pasante (meta 600 horas por defecto)</option>
-                <option value="planta">
-                  Personal de planta (sin meta ni fin de pasantía)
-                </option>
-              </select>
-              {erroresForm.tipo && (
-                <span className="error-campo">{erroresForm.tipo}</span>
-              )}
-            </div>
-
-            <div className="campo-grupo">
-              <label htmlFor="campo-turno">Turno / Horario asignado</label>
-              <select
-                id="campo-turno"
-                className="select-personal"
-                value={form.turno}
-                onChange={(e) => manejarCambioTurno(e.target.value)}
-              >
-                {TURNOS_OPCIONES.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {form.tipo === "planta" ? (
-              <div className="aceptacion col-completa" style={{ marginTop: "4px" }}>
-                <strong>Personal de planta</strong>
-                <p>
-                  De acuerdo con las reglas del sistema, el personal de planta no
-                  muestra ni guarda meta de horas ni fecha de finalización de
-                  pasantía.
-                </p>
-              </div>
-            ) : (
-              <div className="bloque-pasantia-nativo">
-                <span className="numero">SEGUIMIENTO EXCLUSIVO DE PASANTES</span>
-                <h4>Configuración de pasantía (600 horas por defecto)</h4>
-
-                <div className="form-grid-personal" style={{ marginTop: 0 }}>
-                  <div className="campo-grupo">
-                    <label htmlFor="campo-horas-meta">Meta de horas</label>
-                    <input
-                      id="campo-horas-meta"
-                      className="input-personal"
-                      type="number"
-                      min="1"
-                      value={form.horasMeta}
-                      onChange={(e) =>
-                        setForm((prev) => ({ ...prev, horasMeta: e.target.value }))
-                      }
-                    />
-                    <span className="ayuda-campo">
-                      Por defecto: 600 horas para pasantes.
-                    </span>
-                  </div>
-
-                  <div className="campo-grupo">
-                    <label htmlFor="campo-horas-cumplidas">
-                      Horas cumplidas actuales
-                    </label>
-                    <input
-                      id="campo-horas-cumplidas"
-                      className="input-personal"
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={form.horasCumplidas}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          horasCumplidas: e.target.value
-                        }))
-                      }
-                    />
-                    {erroresForm.horasCumplidas && (
-                      <span className="error-campo">
-                        {erroresForm.horasCumplidas}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="campo-grupo">
-                    <label htmlFor="campo-fecha-inicio">Fecha de inicio</label>
-                    <input
-                      id="campo-fecha-inicio"
-                      className="input-personal"
-                      type="date"
-                      value={form.fechaInicio}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          fechaInicio: e.target.value
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="campo-grupo">
-                    <label htmlFor="campo-horas-dia">
-                      Horas por jornada diaria (ej. 4.5 h en turno 08:00 a 12:30)
-                    </label>
-                    <input
-                      id="campo-horas-dia"
-                      className="input-personal"
-                      type="number"
-                      min="0.5"
-                      max="12"
-                      step="0.5"
-                      value={form.horasPorDia}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          horasPorDia: e.target.value
-                        }))
-                      }
-                    />
-                    {erroresForm.horasPorDia && (
-                      <span className="error-campo">{erroresForm.horasPorDia}</span>
-                    )}
-                  </div>
-
-                  <div className="campo-grupo">
-                    <label htmlFor="campo-feriados">
-                      Días feriados en el período
-                    </label>
-                    <input
-                      id="campo-feriados"
-                      className="input-personal"
-                      type="number"
-                      min="0"
-                      value={form.diasFeriados}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          diasFeriados: e.target.value
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="campo-grupo">
-                    <label htmlFor="campo-incidencias">
-                      Días de incidencias / permisos
-                    </label>
-                    <input
-                      id="campo-incidencias"
-                      className="input-personal"
-                      type="number"
-                      min="0"
-                      value={form.diasIncidencias}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          diasIncidencias: e.target.value
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="campo-grupo col-completa">
-                    <label htmlFor="campo-detalle-incidencias">
-                      Observación de feriados / incidencias (opcional)
-                    </label>
-                    <input
-                      id="campo-detalle-incidencias"
-                      className="input-personal"
-                      type="text"
-                      placeholder="Ej. Permiso académico justificado"
-                      value={form.detalleIncidencias}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          detalleIncidencias: e.target.value
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                {vistaPreviaPasantia && (
-                  <div className="aceptacion" style={{ marginTop: "4px" }}>
-                    <strong>Cálculo estimado de fin de pasantía</strong>
-                    <p>
-                      Horas pendientes:{" "}
-                      <strong>{vistaPreviaPasantia.horasPendientes} h</strong> (
-                      {vistaPreviaPasantia.porcentaje}% completado ·{" "}
-                      {vistaPreviaPasantia.jornadasRestantes} jornadas restantes) ·
-                      Fecha estimada de conclusión (según turno, feriados e
-                      incidencias):{" "}
-                      <strong>{vistaPreviaPasantia.fechaFinEstimada}</strong>
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="acciones-formulario">
               <button
                 type="submit"
                 className="btn-personal btn-personal-primario"
-                disabled={guardando}
+                disabled={ocupado}
               >
-                {guardando
-                  ? "Guardando..."
-                  : form.id
-                  ? "Guardar cambios"
-                  : "Confirmar alta de persona"}
+                {ocupado
+                  ? "Conectando con /api/backend…"
+                  : modoRegistroEncargado
+                  ? "Registrar encargado"
+                  : "Ingresar"}
               </button>
               <button
                 type="button"
                 className="btn-personal"
-                onClick={() => setMostrarFormulario(false)}
-                disabled={guardando}
+                onClick={() => setModoRegistroEncargado((v) => !v)}
+                disabled={ocupado}
               >
-                Cancelar
+                {modoRegistroEncargado
+                  ? "Volver al inicio de sesión"
+                  : "Crear cuenta de encargado"}
               </button>
             </div>
           </form>
         </section>
-      )}
-
-      {/* Búsqueda y filtros dentro de contenedor .detalle-modulo */}
-      <section className="detalle-modulo" aria-label="Búsqueda y filtros">
-        <div className="filtros-grid-personal">
-          <div className="campo-grupo">
-            <label htmlFor="filtro-busqueda">
-              Buscar persona (por nombres, apellidos o código PER-XXX)
-            </label>
-            <input
-              id="filtro-busqueda"
-              className="input-personal"
-              type="search"
-              placeholder="Escriba para buscar..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-          </div>
-
-          <div className="campo-grupo">
-            <label htmlFor="filtro-tipo">Tipo de personal</label>
-            <select
-              id="filtro-tipo"
-              className="select-personal"
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value)}
+      ) : (
+        <>
+          {/* Formulario de Alta / Edición para Admin y SuperAdmin */}
+          {!esEncargado && fichaEdicion && (
+            <section
+              className="detalle-modulo no-imprimir"
+              aria-label={
+                fichaEdicion.idPasante
+                  ? "Editar ficha de personal"
+                  : "Alta de personal"
+              }
             >
-              <option value="todos">Todos (Planta y Pasantes)</option>
-              <option value="planta">Solo Planta</option>
-              <option value="pasante">Solo Pasantes</option>
-            </select>
-          </div>
+              <span className="numero">
+                {fichaEdicion.idPasante
+                  ? `EDICIÓN DE FICHA · ${fichaEdicion.codigo || `ID ${fichaEdicion.idPasante}`}`
+                  : "ALTA DE PERSONAL (PERSONAL.GUARDAR)"}
+              </span>
+              <h3 style={{ marginTop: "10px", marginBottom: "8px", fontSize: "24px" }}>
+                {fichaEdicion.idPasante
+                  ? `Editar a ${fichaEdicion.nombres} ${fichaEdicion.apellidos}`
+                  : "Registrar nueva persona"}
+              </h3>
+              <p style={{ marginTop: 0 }}>
+                Alta mínima: nombres, apellidos y tipo de contrato. El código y la
+                fecha de fin son calculados por C#.
+              </p>
 
-          <div className="campo-grupo">
-            <label htmlFor="filtro-estado">Estado</label>
-            <select
-              id="filtro-estado"
-              className="select-personal"
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-            >
-              <option value="todos">Activos y de baja</option>
-              <option value="activo">Solo activos</option>
-              <option value="baja">Solo dados de baja</option>
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className="btn-personal"
-            onClick={() => {
-              setBusqueda("");
-              setFiltroTipo("todos");
-              setFiltroEstado("todos");
-            }}
-          >
-            Limpiar filtros
-          </button>
-        </div>
-      </section>
-
-      {/* Cuadrícula de fichas siguiendo el diseño de .modulos y .tarjeta */}
-      <section aria-label="Fichas de personal">
-        {cargando ? (
-          <div className="detalle-modulo">
-            <p>Cargando registros de personal...</p>
-          </div>
-        ) : personas.length === 0 ? (
-          <div className="detalle-modulo">
-            <span className="numero">SIN RESULTADOS</span>
-            <h3>No se encontraron personas con los filtros seleccionados</h3>
-            <p>Limpie la búsqueda o registre una nueva persona.</p>
-          </div>
-        ) : (
-          <div className="grid-fichas-personal">
-            {personas.map((persona) => {
-              const esPasante = persona.tipo === "pasante" && persona.pasantia;
-              const esBaja = persona.estado === "baja";
-              const historialAbierto = historialAbiertoId === persona.id;
-              const bajaAbierta = bajaActivaId === persona.id;
-              const progresoAbierto = progresoActivoId === persona.id;
-
-              return (
-                <article
-                  key={persona.id}
-                  className={`tarjeta-persona ${esBaja ? "en-baja" : ""}`}
-                >
-                  <div className="tarjeta-persona-cabecera">
-                    <span className="numero">
-                      {persona.codigo} ·{" "}
-                      {persona.tipo === "pasante" ? "PASANTE" : "PERSONAL DE PLANTA"}
-                    </span>
-                    <span className={`pildora-estado ${esBaja ? "baja" : ""}`}>
-                      {esBaja ? "De baja" : "Activo"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3>{persona.nombreCompleto}</h3>
-                    <p className="submeta">
-                      {obtenerNombreTurno(persona.turno)} · Alta: {persona.fechaAlta}
-                    </p>
-                    {persona.datosEscritorio?.escritorioId && (
-                      <div className="etiquetas" style={{ marginTop: "10px" }}>
-                        <span>
-                          Escritorio: {persona.datosEscritorio.escritorioId}
-                        </span>
-                        <span>
-                          Sincronizado: {persona.datosEscritorio.sincronizadoEn}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {esBaja && persona.motivoBaja && (
-                    <div className="bloque-planta-nativo">
-                      <strong>Motivo de baja conservado:</strong>{" "}
-                      {persona.motivoBaja}
-                    </div>
+              <form
+                className="form-grid-personal"
+                onSubmit={guardarFichaFormulario}
+                noValidate
+              >
+                <div className="campo-grupo">
+                  <label htmlFor="ficha-nombres">Nombres *</label>
+                  <input
+                    id="ficha-nombres"
+                    className="input-personal"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    value={fichaEdicion.nombres}
+                    onChange={(e) =>
+                      setFichaEdicion((p) => ({ ...p, nombres: e.target.value }))
+                    }
+                  />
+                  {erroresFicha.nombres && (
+                    <span className="error-campo">{erroresFicha.nombres}</span>
                   )}
+                </div>
 
-                  {/* Diferenciación estricta Planta vs Pasante */}
-                  {esPasante ? (
-                    <div className="bloque-progreso-nativo">
-                      <div className="fila-progreso">
-                        <span>
-                          Avance de pasantía: {persona.pasantia.horasCumplidas} /{" "}
-                          {persona.pasantia.horasMeta} h
-                        </span>
-                        <span>{persona.pasantia.porcentajeProgreso}%</span>
-                      </div>
-                      <div
-                        className="barra-nativa-fondo"
-                        role="progressbar"
-                        aria-valuenow={persona.pasantia.porcentajeProgreso}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                      >
-                        <div
-                          className="barra-nativa-relleno"
-                          style={{
-                            width: `${persona.pasantia.porcentajeProgreso}%`
-                          }}
-                        />
-                      </div>
-                      <div className="datos-pasantia-grid">
-                        <span>
-                          <strong>Pendientes:</strong>{" "}
-                          {persona.pasantia.horasPendientes} h (
-                          {persona.pasantia.jornadasRestantes} jornadas)
-                        </span>
-                        <span>
-                          <strong>Fin estimado:</strong>{" "}
-                          {persona.pasantia.fechaFinEstimada}
-                        </span>
-                        <span>
-                          <strong>Horario:</strong>{" "}
-                          {persona.pasantia.horario || "08:00 - 12:30"} (
-                          {persona.pasantia.horasPorDia} h/día)
-                        </span>
-                        <span>
-                          <strong>Feriados / Incid.:</strong>{" "}
-                          {persona.pasantia.diasFeriados} fer. ·{" "}
-                          {persona.pasantia.diasIncidencias} inc.
-                        </span>
-                      </div>
-                      {persona.pasantia.detalleIncidencias && (
-                        <span style={{ fontSize: "12px", color: "#526c5c" }}>
-                          Nota: {persona.pasantia.detalleIncidencias}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="bloque-planta-nativo">
-                      <strong>Personal de planta:</strong> Sin meta de horas ni
+                <div className="campo-grupo">
+                  <label htmlFor="ficha-apellidos">Apellidos *</label>
+                  <input
+                    id="ficha-apellidos"
+                    className="input-personal"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    value={fichaEdicion.apellidos}
+                    onChange={(e) =>
+                      setFichaEdicion((p) => ({ ...p, apellidos: e.target.value }))
+                    }
+                  />
+                  {erroresFicha.apellidos && (
+                    <span className="error-campo">{erroresFicha.apellidos}</span>
+                  )}
+                </div>
+
+                <div className="campo-grupo">
+                  <label htmlFor="ficha-tipo-contrato">Tipo de personal *</label>
+                  <select
+                    id="ficha-tipo-contrato"
+                    className="select-personal"
+                    value={fichaEdicion.tipoContrato}
+                    onChange={(e) => {
+                      const nuevoTipo = e.target.value;
+                      setFichaEdicion((p) => ({
+                        ...p,
+                        tipoContrato: nuevoTipo,
+                        horasRequeridas:
+                          nuevoTipo === "Pasante"
+                            ? Number(p.horasRequeridas) > 0
+                              ? p.horasRequeridas
+                              : HORAS_META_DEFECTO
+                            : 0
+                      }));
+                    }}
+                  >
+                    {TIPOS_CONTRATO.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
+                  </select>
+                  {erroresFicha.tipoContrato && (
+                    <span className="error-campo">{erroresFicha.tipoContrato}</span>
+                  )}
+                </div>
+
+                <div className="campo-grupo">
+                  <label htmlFor="ficha-fecha-inicio">Fecha de ingreso *</label>
+                  <input
+                    id="ficha-fecha-inicio"
+                    className="input-personal"
+                    type="date"
+                    required
+                    disabled={Boolean(fichaEdicion.idPasante) && !esSuperAdmin}
+                    value={fichaEdicion.fechaInicio?.slice(0, 10) || ""}
+                    onChange={(e) =>
+                      setFichaEdicion((p) => ({
+                        ...p,
+                        fechaInicio: e.target.value
+                      }))
+                    }
+                  />
+                  <span className="ayuda-campo">
+                    {Boolean(fichaEdicion.idPasante) && !esSuperAdmin
+                      ? "Cambiar la fecha de inicio de una persona existente requiere SuperAdmin."
+                      : "Formato YYYY-MM-DD (America/La_Paz)."}
+                  </span>
+                  {erroresFicha.fechaInicio && (
+                    <span className="error-campo">{erroresFicha.fechaInicio}</span>
+                  )}
+                </div>
+
+                <div className="campo-grupo">
+                  <label htmlFor="ficha-turno">Turno soportado por C# *</label>
+                  <select
+                    id="ficha-turno"
+                    className="select-personal"
+                    value={fichaEdicion.turno || "Tiempo Completo"}
+                    onChange={(e) =>
+                      setFichaEdicion((p) => ({ ...p, turno: e.target.value }))
+                    }
+                  >
+                    {TURNOS_CSHARP.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  {erroresFicha.turno && (
+                    <span className="error-campo">{erroresFicha.turno}</span>
+                  )}
+                </div>
+
+                <div className="campo-grupo">
+                  <label htmlFor="ficha-dias-trabajo">Días de trabajo *</label>
+                  <select
+                    id="ficha-dias-trabajo"
+                    className="select-personal"
+                    value={fichaEdicion.diasTrabajo || "Lunes a Viernes"}
+                    onChange={(e) =>
+                      setFichaEdicion((p) => ({
+                        ...p,
+                        diasTrabajo: e.target.value
+                      }))
+                    }
+                  >
+                    {DIAS_TRABAJO_CSHARP.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                  {erroresFicha.diasTrabajo && (
+                    <span className="error-campo">{erroresFicha.diasTrabajo}</span>
+                  )}
+                </div>
+
+                {/* Diferenciación obligatoria: Planta guarda 0 horas; Pasante tiene 600 por defecto */}
+                {fichaEdicion.tipoContrato === "Personal de planta" ? (
+                  <div className="aceptacion col-completa" style={{ marginTop: "4px" }}>
+                    <strong>Personal de planta (horasRequeridas: 0)</strong>
+                    <p>
+                      El personal de planta no muestra ni guarda meta de horas ni
                       fecha de finalización de pasantía.
-                    </div>
-                  )}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bloque-pasantia-nativo">
+                    <span className="numero">PARÁMETROS DE PASANTÍA (C#)</span>
+                    <h4>Meta de horas requeridas (600 horas por defecto)</h4>
+                    <div className="form-grid-personal" style={{ marginTop: 0 }}>
+                      <div className="campo-grupo">
+                        <label htmlFor="ficha-horas-requeridas">
+                          Horas requeridas (1 a 20000) *
+                        </label>
+                        <input
+                          id="ficha-horas-requeridas"
+                          className="input-personal"
+                          type="number"
+                          required
+                          min={1}
+                          max={20000}
+                          value={fichaEdicion.horasRequeridas}
+                          onChange={(e) =>
+                            setFichaEdicion((p) => ({
+                              ...p,
+                              horasRequeridas: e.target.value
+                            }))
+                          }
+                        />
+                        <span className="ayuda-campo">
+                          Valor por defecto: 600 horas (admite 360, 400, 600 u otra
+                          meta de 1 a 20000).
+                        </span>
+                        {erroresFicha.horasRequeridas && (
+                          <span className="error-campo">
+                            {erroresFicha.horasRequeridas}
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Acción inline: sumar progreso / incidencias */}
-                  {progresoAbierto && esPasante && (
-                    <div className="caja-inline-nativa">
-                      <span className="numero">REGISTRAR AVANCE O INCIDENCIAS</span>
-                      <div className="form-grid-personal" style={{ marginTop: 0 }}>
-                        <div className="campo-grupo">
-                          <label htmlFor={`prog-horas-${persona.id}`}>
-                            Horas a sumar (+h)
-                          </label>
-                          <input
-                            id={`prog-horas-${persona.id}`}
-                            className="input-personal"
-                            type="number"
-                            step="0.5"
-                            value={formProgreso.horasSumar}
-                            onChange={(e) =>
-                              setFormProgreso((p) => ({
-                                ...p,
-                                horasSumar: e.target.value
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="campo-grupo">
-                          <label htmlFor={`prog-fer-${persona.id}`}>
-                            Días feriados
-                          </label>
-                          <input
-                            id={`prog-fer-${persona.id}`}
-                            className="input-personal"
-                            type="number"
-                            min="0"
-                            value={formProgreso.diasFeriados}
-                            onChange={(e) =>
-                              setFormProgreso((p) => ({
-                                ...p,
-                                diasFeriados: e.target.value
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="campo-grupo">
-                          <label htmlFor={`prog-inc-${persona.id}`}>
-                            Días de incidencias
-                          </label>
-                          <input
-                            id={`prog-inc-${persona.id}`}
-                            className="input-personal"
-                            type="number"
-                            min="0"
-                            value={formProgreso.diasIncidencias}
-                            onChange={(e) =>
-                              setFormProgreso((p) => ({
-                                ...p,
-                                diasIncidencias: e.target.value
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="campo-grupo">
-                          <label htmlFor={`prog-motivo-${persona.id}`}>
-                            Observación
-                          </label>
-                          <input
-                            id={`prog-motivo-${persona.id}`}
-                            className="input-personal"
-                            type="text"
-                            placeholder="Ej. Jornada 08:00 a 12:30 cumplida"
-                            value={formProgreso.motivo}
-                            onChange={(e) =>
-                              setFormProgreso((p) => ({
-                                ...p,
-                                motivo: e.target.value
-                              }))
-                            }
-                          />
+                      <div className="campo-grupo">
+                        <label>Fecha estimada de fin (calculada por C#)</label>
+                        <div className="bloque-planta-nativo">
+                          {fichaEdicion.fechaFin
+                            ? String(fichaEdicion.fechaFin).slice(0, 10)
+                            : "Se calculará automáticamente al guardar en C# considerando turno, días de trabajo, feriados e incidencias."}
                         </div>
                       </div>
-                      <div
-                        className="acciones-tarjeta"
-                        style={{ borderTop: "none", paddingTop: 0 }}
-                      >
-                        <button
-                          type="button"
-                          className="btn-personal btn-personal-primario"
-                          onClick={() => guardarProgresoPasante(persona)}
-                          disabled={guardando}
-                        >
-                          Guardar avance
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-personal"
-                          onClick={() => setProgresoActivoId(null)}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Acción inline: baja conservando historial */}
-                  {bajaAbierta && !esBaja && (
-                    <div className="caja-inline-nativa">
-                      <label htmlFor={`motivo-baja-${persona.id}`}>
-                        <strong>
-                          Motivo de baja (se conserva historial y datos):
-                        </strong>
+                {/* Datos opcionales de la tabla Personal en PostgreSQL / C# */}
+                <details className="detalles-opcionales-personal">
+                  <summary>
+                    Departamento, identificación, universidad, contacto y foto
+                    (opcionales)
+                  </summary>
+                  <div className="form-grid-personal">
+                    <div className="campo-grupo">
+                      <label htmlFor="ficha-departamento">
+                        Departamento / Área
                       </label>
-                      <input
-                        id={`motivo-baja-${persona.id}`}
-                        className="input-personal"
-                        type="text"
-                        placeholder="Ej. Conclusión de pasantía / Fin de contrato"
-                        value={motivoBajaInput}
-                        onChange={(e) => setMotivoBajaInput(e.target.value)}
-                      />
-                      {errorMotivoBaja && (
-                        <span className="error-campo">{errorMotivoBaja}</span>
-                      )}
-                      <div
-                        className="acciones-tarjeta"
-                        style={{ borderTop: "none", paddingTop: 0 }}
-                      >
-                        <button
-                          type="button"
-                          className="btn-personal btn-personal-primario"
-                          onClick={() => confirmarBajaPersona(persona)}
-                          disabled={guardando}
-                        >
-                          Confirmar baja
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-personal"
-                          onClick={() => {
-                            setBajaActivaId(null);
-                            setMotivoBajaInput("");
-                            setErrorMotivoBaja("");
-                          }}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Visor de historial conservado */}
-                  {historialAbierto && (
-                    <div className="caja-inline-nativa">
-                      <span className="numero">
-                        HISTORIAL CONSERVADO ({persona.historial?.length || 0})
-                      </span>
-                      <ul className="lista-historial-nativa">
-                        {(persona.historial || []).map((ev) => (
-                          <li key={ev.id}>
-                            <strong>{ev.fecha}</strong> · {ev.accion}: {ev.detalle}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="acciones-tarjeta">
-                    <button
-                      type="button"
-                      className="btn-personal"
-                      onClick={() => abrirEdicion(persona)}
-                    >
-                      Editar ficha
-                    </button>
-
-                    {esPasante && !esBaja && (
-                      <button
-                        type="button"
-                        className="btn-personal btn-personal-secundario"
-                        onClick={() =>
-                          progresoAbierto
-                            ? setProgresoActivoId(null)
-                            : abrirCajaProgreso(persona)
-                        }
-                      >
-                        + Horas / Incidencias
-                      </button>
-                    )}
-
-                    {!esBaja ? (
-                      <button
-                        type="button"
-                        className="btn-personal btn-personal-baja"
-                        onClick={() => {
-                          setBajaActivaId(bajaAbierta ? null : persona.id);
-                          setMotivoBajaInput("");
-                          setErrorMotivoBaja("");
+                      <select
+                        id="ficha-departamento"
+                        className="select-personal"
+                        value={fichaEdicion.idDepartamento ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value
+                            ? Number(e.target.value)
+                            : null;
+                          const depto = departamentos.find(
+                            (d) => d.idDepartamento === val || d.id === val
+                          );
+                          setFichaEdicion((p) => ({
+                            ...p,
+                            idDepartamento: val,
+                            nombreDepartamento:
+                              depto?.nombre || p.nombreDepartamento || ""
+                          }));
                         }}
                       >
-                        Dar de baja
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn-personal btn-personal-secundario"
-                        onClick={() => reactivarPersona(persona)}
-                        disabled={guardando}
-                      >
-                        Recuperar persona
-                      </button>
-                    )}
+                        <option value="">Sin departamento específico</option>
+                        {departamentos.map((d) => {
+                          const idDep = d.idDepartamento ?? d.id;
+                          return (
+                            <option key={idDep} value={idDep}>
+                              {d.nombre}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
 
-                    <button
-                      type="button"
-                      className="btn-personal"
-                      onClick={() =>
-                        setHistorialAbiertoId(historialAbierto ? null : persona.id)
-                      }
-                    >
-                      {historialAbierto
-                        ? "Ocultar historial"
-                        : `Historial (${persona.historial?.length || 0})`}
-                    </button>
+                    <div className="campo-grupo">
+                      <label htmlFor="ficha-ci">Cédula de Identidad (CI)</label>
+                      <input
+                        id="ficha-ci"
+                        className="input-personal"
+                        type="text"
+                        maxLength={20}
+                        value={fichaEdicion.ci ?? ""}
+                        onChange={(e) =>
+                          setFichaEdicion((p) => ({ ...p, ci: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div className="campo-grupo">
+                      <label htmlFor="ficha-universidad">
+                        Instituto / Universidad
+                      </label>
+                      <input
+                        id="ficha-universidad"
+                        className="input-personal"
+                        type="text"
+                        maxLength={100}
+                        value={fichaEdicion.universidad ?? ""}
+                        onChange={(e) =>
+                          setFichaEdicion((p) => ({
+                            ...p,
+                            universidad: e.target.value
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="campo-grupo">
+                      <label htmlFor="ficha-carrera">Carrera</label>
+                      <input
+                        id="ficha-carrera"
+                        className="input-personal"
+                        type="text"
+                        maxLength={100}
+                        value={fichaEdicion.carrera ?? ""}
+                        onChange={(e) =>
+                          setFichaEdicion((p) => ({
+                            ...p,
+                            carrera: e.target.value
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="campo-grupo">
+                      <label htmlFor="ficha-telefono">Teléfono</label>
+                      <input
+                        id="ficha-telefono"
+                        className="input-personal"
+                        type="text"
+                        maxLength={20}
+                        value={fichaEdicion.telefono ?? ""}
+                        onChange={(e) =>
+                          setFichaEdicion((p) => ({
+                            ...p,
+                            telefono: e.target.value
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="campo-grupo">
+                      <label htmlFor="ficha-email">Correo electrónico</label>
+                      <input
+                        id="ficha-email"
+                        className="input-personal"
+                        type="email"
+                        maxLength={100}
+                        value={fichaEdicion.email ?? ""}
+                        onChange={(e) =>
+                          setFichaEdicion((p) => ({ ...p, email: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div className="campo-grupo col-completa">
+                      <label htmlFor="ficha-direccion">Dirección</label>
+                      <input
+                        id="ficha-direccion"
+                        className="input-personal"
+                        type="text"
+                        maxLength={200}
+                        value={fichaEdicion.direccion ?? ""}
+                        onChange={(e) =>
+                          setFichaEdicion((p) => ({
+                            ...p,
+                            direccion: e.target.value
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="campo-grupo col-completa">
+                      <label htmlFor="ficha-foto">
+                        Fotografía (JPG, PNG o WebP hasta 3 MB)
+                      </label>
+                      <input
+                        id="ficha-foto"
+                        className="input-personal"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(e) => manejarFotoArchivo(e.target.files?.[0])}
+                      />
+                      {fichaEdicion.foto && (
+                        <img
+                          className="foto-miniatura-personal"
+                          alt="Vista previa de fotografía"
+                          src={fotoUrl(fichaEdicion.foto)}
+                        />
+                      )}
+                    </div>
                   </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                </details>
+
+                <div className="acciones-formulario">
+                  <button
+                    type="submit"
+                    className="btn-personal btn-personal-primario"
+                    disabled={ocupado}
+                  >
+                    {ocupado ? "Guardando en C#…" : "Guardar ficha"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-personal"
+                    onClick={() => {
+                      setFichaEdicion(null);
+                      setFichaOriginalEdicion(null);
+                      setErroresFicha({});
+                    }}
+                    disabled={ocupado}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
+
+          {/* Vista de credencial imprimible */}
+          {credencialActiva && (
+            <section
+              className="detalle-modulo"
+              aria-label="Credencial de identificación"
+            >
+              <span className="numero no-imprimir">CREDENCIAL DE PERSONAL</span>
+              <div className="credencial-tarjeta">
+                <strong>SII · OFICINA SANTIAGO II</strong>
+                {credencialActiva.foto ? (
+                  <img
+                    className="foto-miniatura-personal"
+                    alt="Foto de identificación"
+                    src={fotoUrl(credencialActiva.foto)}
+                  />
+                ) : (
+                  <span className="ayuda-campo">Sin fotografía registrada</span>
+                )}
+                <h3 style={{ margin: "6px 0" }}>
+                  {credencialActiva.nombres} {credencialActiva.apellidos}
+                </h3>
+                <p style={{ margin: 0 }}>
+                  {credencialActiva.tipoContrato} · Código:{" "}
+                  <strong>{credencialActiva.codigo}</strong>
+                </p>
+                {credencialActiva.ci && (
+                  <p style={{ margin: 0 }}>CI: {credencialActiva.ci}</p>
+                )}
+                {credencialActiva.nombreDepartamento && (
+                  <p style={{ margin: 0 }}>
+                    Área: {credencialActiva.nombreDepartamento}
+                  </p>
+                )}
+                {credencialActiva.universidad && (
+                  <p style={{ margin: 0 }}>{credencialActiva.universidad}</p>
+                )}
+                {credencialActiva.carrera && (
+                  <p style={{ margin: 0 }}>{credencialActiva.carrera}</p>
+                )}
+                {credencialActiva.fechaInicio && (
+                  <p style={{ margin: 0 }}>
+                    Ingreso: {String(credencialActiva.fechaInicio).slice(0, 10)}
+                  </p>
+                )}
+                {credencialActiva.tipoContrato === "Pasante" && (
+                  <p style={{ margin: 0 }}>
+                    Meta requerida: {credencialActiva.horasRequeridas} horas
+                  </p>
+                )}
+              </div>
+              <div className="acciones-formulario no-imprimir">
+                <button
+                  type="button"
+                  className="btn-personal btn-personal-primario"
+                  onClick={() => window.print()}
+                >
+                  Imprimir credencial / Guardar PDF
+                </button>
+                <button
+                  type="button"
+                  className="btn-personal"
+                  onClick={() => setCredencialActiva(null)}
+                >
+                  Cerrar credencial
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Detalle individual real desde reportes.individual */}
+          {reporteIndividual && (
+            <section
+              className="detalle-modulo no-imprimir"
+              aria-label="Detalle e historial individual"
+            >
+              <span className="numero">
+                HISTORIAL Y SEGUIMIENTO REAL (REPORTES.INDIVIDUAL)
+              </span>
+              <h3>
+                {reporteIndividual.personal?.nombres}{" "}
+                {reporteIndividual.personal?.apellidos} (
+                {reporteIndividual.personal?.codigo})
+              </h3>
+              <div className="etiquetas">
+                <span>
+                  Asistencias registradas:{" "}
+                  {Array.isArray(reporteIndividual.asistencias)
+                    ? reporteIndividual.asistencias.length
+                    : 0}
+                </span>
+                <span>
+                  Asignaciones a proyectos:{" "}
+                  {Array.isArray(reporteIndividual.proyectos)
+                    ? reporteIndividual.proyectos.length
+                    : 0}
+                </span>
+                <span>
+                  Viáticos registrados:{" "}
+                  {Array.isArray(reporteIndividual.viaticos)
+                    ? reporteIndividual.viaticos.length
+                    : 0}
+                </span>
+              </div>
+              <div className="acciones-formulario">
+                <button
+                  type="button"
+                  className="btn-personal"
+                  onClick={() => setReporteIndividual(null)}
+                >
+                  Cerrar detalle individual
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Barra de búsqueda, modo de consulta y comprobación de código */}
+          <section
+            className="detalle-modulo no-imprimir"
+            aria-label="Búsqueda y filtros"
+          >
+            <div className="filtros-grid-personal">
+              <div className="campo-grupo">
+                <label htmlFor="filtro-busqueda-personal">
+                  Buscar por nombres, apellidos, código o CI
+                </label>
+                <input
+                  id="filtro-busqueda-personal"
+                  className="input-personal"
+                  type="search"
+                  placeholder="Escriba para filtrar…"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                />
+              </div>
+
+              {!esEncargado && (
+                <>
+                  <div className="campo-grupo">
+                    <label htmlFor="filtro-tipo-contrato">Tipo de contrato</label>
+                    <select
+                      id="filtro-tipo-contrato"
+                      className="select-personal"
+                      value={filtroTipoContrato}
+                      onChange={(e) => setFiltroTipoContrato(e.target.value)}
+                    >
+                      <option value="todos">Todos</option>
+                      <option value="Pasante">Solo Pasante</option>
+                      <option value="Personal de planta">
+                        Solo Personal de planta
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="campo-grupo">
+                    <label htmlFor="filtro-origen-lista">
+                      Consulta en servidor
+                    </label>
+                    <select
+                      id="filtro-origen-lista"
+                      className="select-personal"
+                      value={modoListado}
+                      onChange={(e) => setModoListado(e.target.value)}
+                    >
+                      <option value="historico">
+                        personal.historico (Activas e inactivas)
+                      </option>
+                      <option value="activos">
+                        personal.listar (Solo activas)
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="campo-grupo">
+                    <label htmlFor="filtro-estado-activo">Estado en vista</label>
+                    <select
+                      id="filtro-estado-activo"
+                      className="select-personal"
+                      value={filtroEstadoActivo}
+                      onChange={(e) => setFiltroEstadoActivo(e.target.value)}
+                    >
+                      <option value="todos">Activas e inactivas</option>
+                      <option value="activos">Solo activas</option>
+                      <option value="inactivos">Solo inactivas (baja)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {!esEncargado && (
+              <div
+                className="form-grid-personal"
+                style={{ marginTop: "16px", alignItems: "end" }}
+              >
+                <div className="campo-grupo">
+                  <label htmlFor="input-verificar-codigo">
+                    Verificar existencia de código (personal.existe)
+                  </label>
+                  <input
+                    id="input-verificar-codigo"
+                    className="input-personal"
+                    type="text"
+                    placeholder="Ej. P0001"
+                    value={codigoVerificar}
+                    onChange={(e) => setCodigoVerificar(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="btn-personal"
+                    onClick={comprobarCodigoExistente}
+                    disabled={ocupado || !codigoVerificar.trim()}
+                  >
+                    Comprobar código
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Listado de tarjetas de personal */}
+          <section aria-label="Listado de personal">
+            {ocupado && personal.length === 0 ? (
+              <div className="detalle-modulo">
+                <p>Consultando datos en /api/backend…</p>
+              </div>
+            ) : personalFiltrado.length === 0 ? (
+              <div className="detalle-modulo">
+                <span className="numero">SIN REGISTROS EN VISTA</span>
+                <h3>No hay personas que coincidan con los filtros actuales</h3>
+                <p>
+                  Puede cambiar los filtros o registrar una nueva persona mediante{" "}
+                  <code>personal.guardar</code>.
+                </p>
+              </div>
+            ) : (
+              <div className="grid-fichas-personal">
+                {personalFiltrado.map((persona) => {
+                  const clave =
+                    persona.idPasante ??
+                    persona.codigo ??
+                    `${persona.nombres}-${persona.apellidos}`;
+                  const inactiva = persona.activo === false;
+                  const esPasante = persona.tipoContrato === "Pasante";
+                  const minutosReales =
+                    seguimientoMap[`id:${persona.idPasante}`] ??
+                    seguimientoMap[`cod:${persona.codigo}`] ??
+                    persona.minutosTrabajados ??
+                    persona.minutosTotales ??
+                    0;
+                  const avance = calcularAvanceDesdeMinutos(
+                    persona,
+                    minutosReales
+                  );
+
+                  return (
+                    <article
+                      key={clave}
+                      className={`tarjeta-persona ${inactiva ? "en-baja" : ""}`}
+                    >
+                      <div className="tarjeta-persona-cabecera">
+                        <span className="numero">
+                          {persona.codigo || `ID ${persona.idPasante}`} ·{" "}
+                          {persona.tipoContrato || "Personal"}
+                        </span>
+                        <span
+                          className={`pildora-estado ${inactiva ? "baja" : ""}`}
+                        >
+                          {inactiva ? "Inactiva (Baja)" : "Activa"}
+                        </span>
+                      </div>
+
+                      <div className="tarjeta-persona-identidad">
+                        {persona.foto && (
+                          <img
+                            className="foto-miniatura-personal"
+                            alt={`Foto de ${persona.nombres}`}
+                            src={fotoUrl(persona.foto)}
+                          />
+                        )}
+                        <div>
+                          <h3>
+                            {persona.nombreCompleto ||
+                              `${persona.nombres || ""} ${
+                                persona.apellidos || ""
+                              }`.trim()}
+                          </h3>
+                          <p className="submeta">
+                            {persona.turno || "Sin turno especificado"}
+                            {persona.diasTrabajo ? ` · ${persona.diasTrabajo}` : ""}
+                            {persona.fechaInicio
+                              ? ` · Ingreso: ${String(persona.fechaInicio).slice(
+                                  0,
+                                  10
+                                )}`
+                              : ""}
+                          </p>
+                          {(persona.nombreDepartamento ||
+                            persona.ci ||
+                            persona.universidad) && (
+                            <div
+                              className="etiquetas"
+                              style={{ marginTop: "8px" }}
+                            >
+                              {persona.nombreDepartamento && (
+                                <span>{persona.nombreDepartamento}</span>
+                              )}
+                              {persona.ci && <span>CI: {persona.ci}</span>}
+                              {persona.universidad && (
+                                <span>{persona.universidad}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Regla estricta: Pasante muestra meta y avance desde asistencias reales; Planta muestra 0 horas */}
+                      {esPasante && avance ? (
+                        <div className="bloque-progreso-nativo">
+                          <div className="fila-progreso">
+                            <span>
+                              Cumplido (asistencias reales):{" "}
+                              {avance.cumplido.texto} de {avance.horasRequeridas} h
+                            </span>
+                            <span>{avance.porcentaje}%</span>
+                          </div>
+                          <div
+                            className="barra-nativa-fondo"
+                            role="progressbar"
+                            aria-valuenow={avance.porcentaje}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
+                            <div
+                              className="barra-nativa-relleno"
+                              style={{ width: `${avance.porcentaje}%` }}
+                            />
+                          </div>
+                          <div className="datos-pasantia-grid">
+                            <span>
+                              <strong>Pendiente:</strong> {avance.pendiente.texto}
+                            </span>
+                            <span>
+                              <strong>Fin estimado (C#):</strong>{" "}
+                              {persona.fechaFin
+                                ? String(persona.fechaFin).slice(0, 10)
+                                : "Por calcular"}
+                            </span>
+                          </div>
+                        </div>
+                      ) : !esEncargado ? (
+                        <div className="bloque-planta-nativo">
+                          <strong>Personal de planta:</strong> horasRequeridas:{" "}
+                          {persona.horasRequeridas ?? 0} · Sin meta de horas ni fin
+                          de pasantía.
+                        </div>
+                      ) : null}
+
+                      {!esEncargado && (
+                        <div className="acciones-tarjeta no-imprimir">
+                          <button
+                            type="button"
+                            className="btn-personal"
+                            onClick={() => abrirEdicionCompleta(persona)}
+                            disabled={ocupado}
+                          >
+                            Editar ficha
+                          </button>
+
+                          {esPasante && persona.idPasante && (
+                            <button
+                              type="button"
+                              className="btn-personal btn-personal-secundario"
+                              onClick={() => recalcularFinPasante(persona)}
+                              disabled={ocupado}
+                            >
+                              Recalcular fin
+                            </button>
+                          )}
+
+                          {!inactiva && persona.idPasante ? (
+                            <button
+                              type="button"
+                              className="btn-personal btn-personal-baja"
+                              onClick={() => darDeBajaLogica(persona)}
+                              disabled={ocupado}
+                            >
+                              Dar de baja
+                            </button>
+                          ) : (
+                            inactiva && (
+                              <button
+                                type="button"
+                                className="btn-personal btn-personal-secundario"
+                                onClick={() => reactivarPersona(persona)}
+                                disabled={ocupado}
+                              >
+                                Reactivar
+                              </button>
+                            )
+                          )}
+
+                          {persona.idPasante && (
+                            <button
+                              type="button"
+                              className="btn-personal"
+                              onClick={() => abrirDetalleIndividual(persona)}
+                              disabled={ocupado}
+                            >
+                              Historial real
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="btn-personal"
+                            onClick={() => setCredencialActiva(persona)}
+                          >
+                            Credencial
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
