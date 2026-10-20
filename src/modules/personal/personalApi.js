@@ -113,8 +113,12 @@ export function crearFichaVacia() {
     fechaFin: null,
     turno: "Turno Mañana (Medio Tiempo)",
     diasTrabajo: "Lunes a Viernes",
-    idDepartamento: null,
-    nombreDepartamento: "",
+    idDepartamento: 1,
+    idMarca: 1,
+    nombreDepartamento: "General",
+    nombreMarca: "General",
+    proyectoActual: "",
+    proximoProyecto: "",
     ci: "",
     universidad: "",
     carrera: "",
@@ -122,7 +126,9 @@ export function crearFichaVacia() {
     email: "",
     direccion: "",
     contacto: "",
-    foto: "",
+    contactoEmergencia: "",
+    telefonoEmergencia: "",
+    foto: null,
     activo: true
   };
 }
@@ -148,7 +154,12 @@ export function prepararFichaParaGuardar(
 
   const nombres = String(combinada.nombres ?? "").trim();
   const apellidos = String(combinada.apellidos ?? "").trim();
+  const codigo = String(combinada.codigo ?? "").trim();
   const errores = {};
+
+  if (codigo && (codigo.length < 3 || codigo.length > 10)) {
+    errores.codigo = "El código de personal debe tener entre 3 y 10 caracteres.";
+  }
 
   if (nombres.length < 2 || nombres.length > 100) {
     errores.nombres = "Los nombres deben tener entre 2 y 100 caracteres.";
@@ -210,10 +221,14 @@ export function prepararFichaParaGuardar(
     throw error;
   }
 
+  const idDepartamento = Number(combinada.idDepartamento) || 1;
+  const idMarca = Number(combinada.idMarca) || 1;
+
   const payload = {
     ...base,
     ...combinada,
     idPasante,
+    codigo: codigo || (idPasante > 0 ? base.codigo : "P00001"),
     nombres,
     apellidos,
     tipoContrato,
@@ -221,6 +236,18 @@ export function prepararFichaParaGuardar(
     turno,
     diasTrabajo,
     fechaInicio,
+    idDepartamento,
+    idMarca,
+    carrera: String(combinada.carrera ?? "").trim(),
+    universidad: String(combinada.universidad ?? "").trim(),
+    ci: String(combinada.ci ?? "").trim(),
+    telefono: String(combinada.telefono ?? "").trim(),
+    email: String(combinada.email ?? "").trim(),
+    direccion: String(combinada.direccion ?? "").trim(),
+    contacto: String(combinada.contacto ?? "").trim(),
+    contactoEmergencia: String(combinada.contactoEmergencia ?? "").trim(),
+    telefonoEmergencia: String(combinada.telefonoEmergencia ?? "").trim(),
+    foto: combinada.foto ? String(combinada.foto).trim() || null : null,
     activo: combinada.activo !== undefined ? Boolean(combinada.activo) : true
   };
 
@@ -336,7 +363,30 @@ export function guardarPersonal(
     usuarioActual,
     fichaExistente
   });
-  return llamar("personal.guardar", fichaValidada, accessToken, opciones);
+  // Adaptación estricta para ASP.NET Core C# (evita "La solicitud no tiene un formato válido."):
+  // 1. FechaFin en C# es non-nullable DateTime. Enviar null o "" provoca JsonException.
+  //    Se omite en el payload para que el servidor C# calcule automáticamente la fecha fin
+  //    (9998-12-31 para Personal de planta, o cálculo basado en horas y calendario para Pasante).
+  // 2. FechaNacimiento en C# es DateTime?. Enviar "" provoca JsonException; debe enviarse null si está vacía.
+  // 3. Foto debe ser base64 puro (sin prefijo "data:image/...;base64,").
+  const datosEnvio = { ...fichaValidada };
+  if (
+    datosEnvio.fechaFin === null ||
+    datosEnvio.fechaFin === "" ||
+    datosEnvio.tipoContrato === "Personal de planta"
+  ) {
+    delete datosEnvio.fechaFin;
+  }
+  if (!datosEnvio.fechaNacimiento) {
+    datosEnvio.fechaNacimiento = null;
+  }
+  if (typeof datosEnvio.foto === "string" && datosEnvio.foto.includes(",")) {
+    datosEnvio.foto = datosEnvio.foto.split(",")[1];
+  }
+  if (!datosEnvio.foto) {
+    datosEnvio.foto = null;
+  }
+  return llamar("personal.guardar", datosEnvio, accessToken, opciones);
 }
 
 export function eliminarPersonal(idPasante, accessToken, opciones) {
@@ -394,4 +444,27 @@ export function consultarIndividualReal(idPasante, accessToken, opciones) {
     accessToken,
     opciones
   );
+}
+
+// Operaciones de proyectos y asignaciones de personal
+export function listarProyectos(accessToken, opciones) {
+  return llamar("proyectos.listar", {}, accessToken, opciones);
+}
+
+export function listarAsignaciones(accessToken, opciones) {
+  return llamar("asignaciones.listar", {}, accessToken, opciones);
+}
+
+export function guardarAsignacion(datos, accessToken, opciones) {
+  const payload = {
+    idAsignacion: Number(datos.idAsignacion) || 0,
+    idProyecto: Number(datos.idProyecto),
+    idPasante: Number(datos.idPasante),
+    rol: String(datos.rol || "Ayudante").trim(),
+    fechaInicio: (datos.fechaInicio || hoyBolivia()).slice(0, 10),
+    fechaFin: datos.fechaFin ? String(datos.fechaFin).slice(0, 10) : null,
+    activo: datos.activo !== undefined ? Boolean(datos.activo) : true,
+    version: Number(datos.version) || 0
+  };
+  return llamar("asignaciones.guardar", payload, accessToken, opciones);
 }

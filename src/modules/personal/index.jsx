@@ -26,7 +26,10 @@ import {
   listarDepartamentos,
   listarMarcas,
   consultarSeguimientoReal,
-  consultarIndividualReal
+  consultarIndividualReal,
+  listarProyectos,
+  listarAsignaciones,
+  guardarAsignacion
 } from "./personalApi.js";
 import "./personal.css";
 
@@ -58,6 +61,8 @@ export default function Modulo({
   const [departamentos, setDepartamentos] = useState([]);
   const [feriados, setFeriados] = useState([]);
   const [marcas, setMarcas] = useState([]);
+  const [proyectos, setProyectos] = useState([]);
+  const [asignaciones, setAsignaciones] = useState([]);
 
   // Estados de interfaz
   const [ocupado, setOcupado] = useState(false);
@@ -78,6 +83,9 @@ export default function Modulo({
   const [fichaOriginalEdicion, setFichaOriginalEdicion] = useState(null);
   const [erroresFicha, setErroresFicha] = useState({});
 
+  // Formulario para Cambiar proyecto / grupo (asignaciones.guardar)
+  const [asignacionForm, setAsignacionForm] = useState(null);
+
   // Detalle individual real (reportes.individual) y credencial imprimible
   const [reporteIndividual, setReporteIndividual] = useState(null);
   const [credencialActiva, setCredencialActiva] = useState(null);
@@ -89,6 +97,7 @@ export default function Modulo({
     setSeguimientoMap({});
     setFichaEdicion(null);
     setFichaOriginalEdicion(null);
+    setAsignacionForm(null);
     setReporteIndividual(null);
     setCredencialActiva(null);
   }
@@ -152,7 +161,9 @@ export default function Modulo({
       consultarSeguimientoReal(
         { idProyecto: idProy ? Number(idProy) : null },
         tokenActivo
-      ).catch(() => [])
+      ).catch(() => []),
+      listarProyectos(tokenActivo).catch(() => []),
+      listarAsignaciones(tokenActivo).catch(() => [])
     ];
 
     const [
@@ -160,13 +171,17 @@ export default function Modulo({
       listaDeptos,
       listaFeriados,
       listaMarcas,
-      listaSeguimiento
+      listaSeguimiento,
+      listaProyectos,
+      listaAsignaciones
     ] = await Promise.all(promesas);
 
     setPersonal(Array.isArray(listaPersonal) ? listaPersonal : []);
     setDepartamentos(Array.isArray(listaDeptos) ? listaDeptos : []);
     setFeriados(Array.isArray(listaFeriados) ? listaFeriados : []);
     setMarcas(Array.isArray(listaMarcas) ? listaMarcas : []);
+    setProyectos(Array.isArray(listaProyectos) ? listaProyectos : []);
+    setAsignaciones(Array.isArray(listaAsignaciones) ? listaAsignaciones : []);
 
     // Mapear minutos reales trabajados por idPasante o codigo desde reportes.seguimiento
     const mapa = {};
@@ -196,7 +211,7 @@ export default function Modulo({
         cargarDatosModulo(token, usuario, modoListado, idProyectoFiltro)
       );
     }
-  }, [token, usuario, modoListado]);
+  }, [token, usuario, modoListado, idProyectoFiltro]);
 
   async function manejarAcceso(e) {
     e.preventDefault();
@@ -217,10 +232,28 @@ export default function Modulo({
     });
   }
 
+  function calcularSiguienteCodigo(lista) {
+    let maxNum = 0;
+    for (const p of lista) {
+      const match = String(p.codigo || "").match(/^P(\d+)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+    return maxNum > 0 ? `P${String(maxNum + 1).padStart(5, "0")}` : "P00009";
+  }
+
   function iniciarNuevaFicha() {
     setErroresFicha({});
     setFichaOriginalEdicion(null);
-    setFichaEdicion(crearFichaVacia());
+    const sigCod = calcularSiguienteCodigo(personal);
+    setFichaEdicion({
+      ...crearFichaVacia(),
+      codigo: sigCod,
+      idDepartamento: departamentos[0]?.idDepartamento || 1,
+      idMarca: marcas[0]?.idMarca || 1
+    });
   }
 
   async function abrirEdicionCompleta(personaResumen) {
@@ -247,20 +280,20 @@ export default function Modulo({
   async function manejarFotoArchivo(archivo) {
     if (!archivo) return;
     if (
-      !["image/jpeg", "image/png", "image/webp"].includes(archivo.type) ||
+      !["image/jpeg", "image/png"].includes(archivo.type) ||
       archivo.size > 3 * 1024 * 1024
     ) {
-      setError("Seleccione una imagen JPG, PNG o WebP de hasta 3 MB.");
+      setError("Seleccione una imagen JPG o PNG de hasta 3 MB.");
       return;
     }
     try {
       const base64 = await new Promise((resolve, reject) => {
         const lector = new FileReader();
-        lector.onload = () => resolve(String(lector.result).split(",")[1] || "");
+        lector.onload = () => resolve(String(lector.result).split(",")[1] || null);
         lector.onerror = reject;
         lector.readAsDataURL(archivo);
       });
-      setFichaEdicion((prev) => ({ ...prev, foto: base64 }));
+      setFichaEdicion((prev) => ({ ...prev, foto: base64 || null }));
     } catch {
       setError("No se pudo leer el archivo de imagen.");
     }
@@ -354,12 +387,49 @@ export default function Modulo({
     });
   }
 
+  function abrirCambioProyecto(persona) {
+    const proyDefecto = proyectos[0];
+    const idProyDef = proyDefecto?.idProyecto ?? proyDefecto?.id ?? "";
+    setAsignacionForm({
+      idAsignacion: 0,
+      idPasante: persona?.idPasante || (personal[0]?.idPasante ?? ""),
+      nombrePersona: persona
+        ? `${persona.nombres || ""} ${persona.apellidos || ""}`.trim()
+        : "",
+      idProyecto: idProyDef,
+      rol: "Ayudante",
+      fechaInicio: hoyBolivia(),
+      fechaFin: "",
+      activo: true
+    });
+  }
+
+  async function guardarCambioProyecto(e) {
+    e.preventDefault();
+    if (!asignacionForm?.idPasante || !asignacionForm?.idProyecto) {
+      setError("Seleccione la persona y el proyecto de destino.");
+      return;
+    }
+    await ejecutarTarea(async () => {
+      await guardarAsignacion(asignacionForm, token);
+      setAsignacionForm(null);
+      await cargarDatosModulo();
+      setAviso("Asignación de proyecto guardada correctamente en el servidor C#.");
+    });
+  }
+
   const personalFiltrado = useMemo(() => {
     const q = busqueda
       .trim()
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
+
+    const proySeleccionado = idProyectoFiltro
+      ? proyectos.find(
+          (pr) => String(pr.idProyecto ?? pr.id) === String(idProyectoFiltro)
+        )
+      : null;
 
     return personal.filter((p) => {
       if (
@@ -374,6 +444,22 @@ export default function Modulo({
       if (filtroEstadoActivo === "inactivos" && p.activo !== false) {
         return false;
       }
+      if (idProyectoFiltro && modoListado === "historico") {
+        const tieneAsig = asignaciones.some(
+          (a) =>
+            Number(a.idPasante) === Number(p.idPasante) &&
+            Number(a.idProyecto) === Number(idProyectoFiltro) &&
+            a.activo !== false
+        );
+        const coincideNombre =
+          proySeleccionado?.nombre &&
+          String(p.proyectoActual || "")
+            .toLowerCase()
+            .includes(String(proySeleccionado.nombre).toLowerCase());
+        if (!tieneAsig && !coincideNombre) {
+          return false;
+        }
+      }
       if (q) {
         const texto = [
           p.codigo,
@@ -382,6 +468,9 @@ export default function Modulo({
           p.nombreCompleto,
           p.ci,
           p.nombreDepartamento,
+          p.nombreMarca,
+          p.proyectoActual,
+          p.proximoProyecto,
           p.universidad,
           p.carrera
         ]
@@ -394,7 +483,16 @@ export default function Modulo({
       }
       return true;
     });
-  }, [personal, busqueda, filtroTipoContrato, filtroEstadoActivo]);
+  }, [
+    personal,
+    busqueda,
+    filtroTipoContrato,
+    filtroEstadoActivo,
+    idProyectoFiltro,
+    modoListado,
+    proyectos,
+    asignaciones
+  ]);
 
   const indicadores = useMemo(() => {
     let activos = 0;
@@ -435,14 +533,24 @@ export default function Modulo({
 
           <div className="mod-personal-acciones-top no-imprimir">
             {usuario && !esEncargado && (
-              <button
-                type="button"
-                className="btn-personal btn-personal-primario"
-                onClick={iniciarNuevaFicha}
-                disabled={ocupado}
-              >
-                + Nueva persona
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn-personal btn-personal-primario"
+                  onClick={iniciarNuevaFicha}
+                  disabled={ocupado}
+                >
+                  + Nueva persona
+                </button>
+                <button
+                  type="button"
+                  className="btn-personal btn-personal-secundario"
+                  onClick={() => abrirCambioProyecto(personal[0])}
+                  disabled={ocupado}
+                >
+                  Cambiar proyecto / grupo
+                </button>
+              </>
             )}
             {usuario && (
               <button
@@ -638,8 +746,8 @@ export default function Modulo({
                   : "Registrar nueva persona"}
               </h3>
               <p style={{ marginTop: 0 }}>
-                Alta mínima: nombres, apellidos y tipo de contrato. El código y la
-                fecha de fin son calculados por C#.
+                Registro de personal: código, nombres, apellidos y tipo de personal.
+                Los pasantes conservan su marca de pasantía.
               </p>
 
               <form
@@ -647,6 +755,34 @@ export default function Modulo({
                 onSubmit={guardarFichaFormulario}
                 noValidate
               >
+                <div className="campo-grupo">
+                  <label htmlFor="ficha-codigo">Código *</label>
+                  <input
+                    id="ficha-codigo"
+                    className="input-personal"
+                    type="text"
+                    required
+                    minLength={3}
+                    maxLength={10}
+                    disabled={Boolean(fichaEdicion.idPasante)}
+                    value={fichaEdicion.codigo || ""}
+                    onChange={(e) =>
+                      setFichaEdicion((p) => ({
+                        ...p,
+                        codigo: e.target.value.toUpperCase().trim()
+                      }))
+                    }
+                  />
+                  <span className="ayuda-campo">
+                    {fichaEdicion.idPasante
+                      ? "El código asignado no se modifica al editar."
+                      : "Código único de 3 a 10 caracteres (ej. P00009)."}
+                  </span>
+                  {erroresFicha.codigo && (
+                    <span className="error-campo">{erroresFicha.codigo}</span>
+                  )}
+                </div>
+
                 <div className="campo-grupo">
                   <label htmlFor="ficha-nombres">Nombres *</label>
                   <input
@@ -799,8 +935,54 @@ export default function Modulo({
                 ) : (
                   <div className="bloque-pasantia-nativo">
                     <span className="numero">PARÁMETROS DE PASANTÍA (C#)</span>
-                    <h4>Meta de horas requeridas (600 horas por defecto)</h4>
+                    <h4>Parámetros de pasantía: Marca, Carrera y Meta de horas</h4>
                     <div className="form-grid-personal" style={{ marginTop: 0 }}>
+                      <div className="campo-grupo">
+                        <label htmlFor="ficha-marca-pasante">Marca (pasantes) *</label>
+                        <select
+                          id="ficha-marca-pasante"
+                          className="select-personal"
+                          value={fichaEdicion.idMarca || 1}
+                          onChange={(e) =>
+                            setFichaEdicion((p) => ({
+                              ...p,
+                              idMarca: Number(e.target.value)
+                            }))
+                          }
+                        >
+                          {marcas.length > 0 ? (
+                            marcas.map((m) => (
+                              <option key={m.idMarca} value={m.idMarca}>
+                                {m.nombreMarca || m.nombre || `Marca ${m.idMarca}`}
+                              </option>
+                            ))
+                          ) : (
+                            <option value={1}>General</option>
+                          )}
+                        </select>
+                        <span className="ayuda-campo">Los pasantes conservan su marca de pasantía.</span>
+                      </div>
+
+                      <div className="campo-grupo">
+                        <label htmlFor="ficha-carrera-pasante">Carrera *</label>
+                        <input
+                          id="ficha-carrera-pasante"
+                          className="input-personal"
+                          type="text"
+                          placeholder="Ej. Ingeniería Civil, Arquitectura, Sistemas..."
+                          value={fichaEdicion.carrera || ""}
+                          onChange={(e) =>
+                            setFichaEdicion((p) => ({
+                              ...p,
+                              carrera: e.target.value
+                            }))
+                          }
+                        />
+                        <span className="ayuda-campo">
+                          Solo pasantes de Civil y Arquitectura participan en proyectos.
+                        </span>
+                      </div>
+
                       <div className="campo-grupo">
                         <label htmlFor="ficha-horas-requeridas">
                           Horas requeridas (1 a 20000) *
@@ -852,16 +1034,14 @@ export default function Modulo({
                   <div className="form-grid-personal">
                     <div className="campo-grupo">
                       <label htmlFor="ficha-departamento">
-                        Departamento / Área
+                        Departamento / Área *
                       </label>
                       <select
                         id="ficha-departamento"
                         className="select-personal"
-                        value={fichaEdicion.idDepartamento ?? ""}
+                        value={fichaEdicion.idDepartamento || (departamentos[0]?.idDepartamento ?? 1)}
                         onChange={(e) => {
-                          const val = e.target.value
-                            ? Number(e.target.value)
-                            : null;
+                          const val = Number(e.target.value) || 1;
                           const depto = departamentos.find(
                             (d) => d.idDepartamento === val || d.id === val
                           );
@@ -869,19 +1049,22 @@ export default function Modulo({
                             ...p,
                             idDepartamento: val,
                             nombreDepartamento:
-                              depto?.nombre || p.nombreDepartamento || ""
+                              depto?.nombre || p.nombreDepartamento || "General"
                           }));
                         }}
                       >
-                        <option value="">Sin departamento específico</option>
-                        {departamentos.map((d) => {
-                          const idDep = d.idDepartamento ?? d.id;
-                          return (
-                            <option key={idDep} value={idDep}>
-                              {d.nombre}
-                            </option>
-                          );
-                        })}
+                        {departamentos.length > 0 ? (
+                          departamentos.map((d) => {
+                            const idDep = d.idDepartamento ?? d.id;
+                            return (
+                              <option key={idDep} value={idDep}>
+                                {d.nombre || `Departamento ${idDep}`}
+                              </option>
+                            );
+                          })
+                        ) : (
+                          <option value={1}>General</option>
+                        )}
                       </select>
                     </div>
 
@@ -985,13 +1168,13 @@ export default function Modulo({
 
                     <div className="campo-grupo col-completa">
                       <label htmlFor="ficha-foto">
-                        Fotografía (JPG, PNG o WebP hasta 3 MB)
+                        Fotografía (JPG o PNG hasta 3 MB)
                       </label>
                       <input
                         id="ficha-foto"
                         className="input-personal"
                         type="file"
-                        accept="image/png,image/jpeg,image/webp"
+                        accept="image/png,image/jpeg"
                         onChange={(e) => manejarFotoArchivo(e.target.files?.[0])}
                       />
                       {fichaEdicion.foto && (
@@ -1145,6 +1328,129 @@ export default function Modulo({
             </section>
           )}
 
+          {/* Formulario Cambiar proyecto / grupo (asignaciones.guardar) */}
+          {!esEncargado && asignacionForm && (
+            <section
+              className="detalle-modulo no-imprimir"
+              aria-label="Cambiar proyecto o grupo"
+            >
+              <span className="numero">
+                ASIGNACIÓN DE PROYECTO (ASIGNACIONES.GUARDAR)
+              </span>
+              <h3 style={{ marginTop: "10px", marginBottom: "8px", fontSize: "22px" }}>
+                Cambiar proyecto / grupo
+              </h3>
+              <p style={{ marginTop: 0 }}>
+                Planta se organiza por proyectos (o pasantes de Civil y Arquitectura).
+                Seleccione la persona, el proyecto de destino y su cargo en obra.
+              </p>
+
+              <form className="form-grid-personal" onSubmit={guardarCambioProyecto}>
+                <div className="campo-grupo">
+                  <label htmlFor="asig-persona">Persona *</label>
+                  <select
+                    id="asig-persona"
+                    className="select-personal"
+                    required
+                    value={asignacionForm.idPasante}
+                    onChange={(e) =>
+                      setAsignacionForm((p) => ({
+                        ...p,
+                        idPasante: Number(e.target.value)
+                      }))
+                    }
+                  >
+                    <option value="">Seleccione una persona…</option>
+                    {personal
+                      .filter((p) => p.activo !== false)
+                      .map((p) => (
+                        <option key={p.idPasante} value={p.idPasante}>
+                          {p.codigo} · {p.nombres} {p.apellidos} ({p.tipoContrato})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="campo-grupo">
+                  <label htmlFor="asig-proyecto">Proyecto de destino *</label>
+                  <select
+                    id="asig-proyecto"
+                    className="select-personal"
+                    required
+                    value={asignacionForm.idProyecto}
+                    onChange={(e) =>
+                      setAsignacionForm((p) => ({
+                        ...p,
+                        idProyecto: Number(e.target.value)
+                      }))
+                    }
+                  >
+                    <option value="">Seleccione un proyecto…</option>
+                    {proyectos.map((pr) => {
+                      const idPr = pr.idProyecto ?? pr.id;
+                      return (
+                        <option key={idPr} value={idPr}>
+                          {pr.codigo ? `${pr.codigo} · ` : ""}
+                          {pr.nombre}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div className="campo-grupo">
+                  <label htmlFor="asig-rol">Cargo / Rol en el proyecto *</label>
+                  <input
+                    id="asig-rol"
+                    className="input-personal"
+                    type="text"
+                    required
+                    placeholder="Ej. Ayudante, Maestro, Residente…"
+                    value={asignacionForm.rol}
+                    onChange={(e) =>
+                      setAsignacionForm((p) => ({ ...p, rol: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="campo-grupo">
+                  <label htmlFor="asig-fecha-inicio">Fecha de inicio *</label>
+                  <input
+                    id="asig-fecha-inicio"
+                    className="input-personal"
+                    type="date"
+                    required
+                    value={asignacionForm.fechaInicio}
+                    onChange={(e) =>
+                      setAsignacionForm((p) => ({
+                        ...p,
+                        fechaInicio: e.target.value
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="acciones-formulario">
+                  <button
+                    type="submit"
+                    className="btn-personal btn-personal-primario"
+                    disabled={ocupado}
+                  >
+                    {ocupado ? "Guardando…" : "Guardar asignación de proyecto"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-personal"
+                    onClick={() => setAsignacionForm(null)}
+                    disabled={ocupado}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
+
           {/* Barra de búsqueda, modo de consulta y comprobación de código */}
           <section
             className="detalle-modulo no-imprimir"
@@ -1153,7 +1459,7 @@ export default function Modulo({
             <div className="filtros-grid-personal">
               <div className="campo-grupo">
                 <label htmlFor="filtro-busqueda-personal">
-                  Buscar por nombres, apellidos, código o CI
+                  Buscar por nombre, código, CI o proyecto
                 </label>
                 <input
                   id="filtro-busqueda-personal"
@@ -1167,6 +1473,27 @@ export default function Modulo({
 
               {!esEncargado && (
                 <>
+                  <div className="campo-grupo">
+                    <label htmlFor="filtro-proyecto-equipo">Ver equipo de</label>
+                    <select
+                      id="filtro-proyecto-equipo"
+                      className="select-personal"
+                      value={idProyectoFiltro}
+                      onChange={(e) => setIdProyectoFiltro(e.target.value)}
+                    >
+                      <option value="">TODOS · Todos los proyectos</option>
+                      {proyectos.map((pr) => {
+                        const idPr = pr.idProyecto ?? pr.id;
+                        return (
+                          <option key={idPr} value={idPr}>
+                            {pr.codigo ? `${pr.codigo} · ` : ""}
+                            {pr.nombre}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
                   <div className="campo-grupo">
                     <label htmlFor="filtro-tipo-contrato">Tipo de contrato</label>
                     <select
@@ -1251,7 +1578,7 @@ export default function Modulo({
             )}
           </section>
 
-          {/* Listado de tarjetas de personal */}
+          {/* Listado de personal (Tabla de escritorio + Tarjetas de detalle) */}
           <section aria-label="Listado de personal">
             {ocupado && personal.length === 0 ? (
               <div className="detalle-modulo">
@@ -1267,196 +1594,323 @@ export default function Modulo({
                 </p>
               </div>
             ) : (
-              <div className="grid-fichas-personal">
-                {personalFiltrado.map((persona) => {
-                  const clave =
-                    persona.idPasante ??
-                    persona.codigo ??
-                    `${persona.nombres}-${persona.apellidos}`;
-                  const inactiva = persona.activo === false;
-                  const esPasante = persona.tipoContrato === "Pasante";
-                  const minutosReales =
-                    seguimientoMap[`id:${persona.idPasante}`] ??
-                    seguimientoMap[`cod:${persona.codigo}`] ??
-                    persona.minutosTrabajados ??
-                    persona.minutosTotales ??
-                    0;
-                  const avance = calcularAvanceDesdeMinutos(
-                    persona,
-                    minutosReales
-                  );
-
-                  return (
-                    <article
-                      key={clave}
-                      className={`tarjeta-persona ${inactiva ? "en-baja" : ""}`}
-                    >
-                      <div className="tarjeta-persona-cabecera">
-                        <span className="numero">
-                          {persona.codigo || `ID ${persona.idPasante}`} ·{" "}
-                          {persona.tipoContrato || "Personal"}
-                        </span>
-                        <span
-                          className={`pildora-estado ${inactiva ? "baja" : ""}`}
-                        >
-                          {inactiva ? "Inactiva (Baja)" : "Activa"}
-                        </span>
-                      </div>
-
-                      <div className="tarjeta-persona-identidad">
-                        {persona.foto && (
-                          <img
-                            className="foto-miniatura-personal"
-                            alt={`Foto de ${persona.nombres}`}
-                            src={fotoUrl(persona.foto)}
-                          />
-                        )}
-                        <div>
-                          <h3>
-                            {persona.nombreCompleto ||
-                              `${persona.nombres || ""} ${
-                                persona.apellidos || ""
-                              }`.trim()}
-                          </h3>
-                          <p className="submeta">
-                            {persona.turno || "Sin turno especificado"}
-                            {persona.diasTrabajo ? ` · ${persona.diasTrabajo}` : ""}
-                            {persona.fechaInicio
-                              ? ` · Ingreso: ${String(persona.fechaInicio).slice(
-                                  0,
-                                  10
-                                )}`
-                              : ""}
-                          </p>
-                          {(persona.nombreDepartamento ||
-                            persona.ci ||
-                            persona.universidad) && (
-                            <div
-                              className="etiquetas"
-                              style={{ marginTop: "8px" }}
+              <>
+                {/* Tabla oficial sincronizada con la vista Personal de escritorio */}
+                <div className="detalle-modulo no-imprimir" style={{ marginBottom: "24px" }}>
+                  <span className="numero">
+                    VISTA TABLA · PERSONAL Y PROYECTOS
+                  </span>
+                  <h3 style={{ marginTop: "8px", marginBottom: "6px" }}>
+                    Planta se organiza por proyectos. Los pasantes conservan su marca de pasantía.
+                  </h3>
+                  <div className="tabla-contenedor-personal" style={{ marginTop: "14px", marginBottom: 0 }}>
+                    <table className="tabla-personal-escritorio">
+                      <thead>
+                        <tr>
+                          <th>Código</th>
+                          <th>Nombres</th>
+                          <th>Apellidos</th>
+                          <th>Tipo</th>
+                          <th>Marca (pasantes)</th>
+                          <th>Proyecto actual</th>
+                          <th>Próximo destino</th>
+                          {!esEncargado && <th>Acciones</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {personalFiltrado.map((persona) => {
+                          const claveTabla =
+                            persona.idPasante ??
+                            persona.codigo ??
+                            `${persona.nombres}-${persona.apellidos}`;
+                          const esPasante = persona.tipoContrato === "Pasante";
+                          const marcaMostrar = esPasante
+                            ? persona.nombreMarca || "General"
+                            : "No aplica";
+                          return (
+                            <tr
+                              key={claveTabla}
+                              className={persona.activo === false ? "fila-inactiva" : ""}
                             >
-                              {persona.nombreDepartamento && (
-                                <span>{persona.nombreDepartamento}</span>
+                              <td>
+                                <strong>{persona.codigo || `ID ${persona.idPasante}`}</strong>
+                              </td>
+                              <td>{persona.nombres}</td>
+                              <td>{persona.apellidos}</td>
+                              <td>{persona.tipoContrato || "Personal"}</td>
+                              <td>{marcaMostrar}</td>
+                              <td>
+                                {persona.proyectoActual ? (
+                                  <span className="etiqueta-proyecto-actual">
+                                    {persona.proyectoActual}
+                                  </span>
+                                ) : (
+                                  <span className="etiqueta-sin-proyecto">Sin asignar</span>
+                                )}
+                              </td>
+                              <td>
+                                {persona.proximoProyecto ? (
+                                  <span className="etiqueta-proyecto-actual">
+                                    {persona.proximoProyecto}
+                                  </span>
+                                ) : (
+                                  <span className="etiqueta-sin-proyecto">—</span>
+                                )}
+                              </td>
+                              {!esEncargado && (
+                                <td>
+                                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                                    <button
+                                      type="button"
+                                      className="btn-personal"
+                                      style={{ minHeight: "34px", padding: "6px 10px", fontSize: "12px" }}
+                                      onClick={() => abrirEdicionCompleta(persona)}
+                                      disabled={ocupado}
+                                    >
+                                      Editar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-personal btn-personal-secundario"
+                                      style={{ minHeight: "34px", padding: "6px 10px", fontSize: "12px" }}
+                                      onClick={() => abrirCambioProyecto(persona)}
+                                      disabled={ocupado}
+                                    >
+                                      Proyecto
+                                    </button>
+                                  </div>
+                                </td>
                               )}
-                              {persona.ci && <span>CI: {persona.ci}</span>}
-                              {persona.universidad && (
-                                <span>{persona.universidad}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-                      {/* Regla estricta: Pasante muestra meta y avance desde asistencias reales; Planta muestra 0 horas */}
-                      {esPasante && avance ? (
-                        <div className="bloque-progreso-nativo">
-                          <div className="fila-progreso">
-                            <span>
-                              Cumplido (asistencias reales):{" "}
-                              {avance.cumplido.texto} de {avance.horasRequeridas} h
-                            </span>
-                            <span>{avance.porcentaje}%</span>
-                          </div>
-                          <div
-                            className="barra-nativa-fondo"
-                            role="progressbar"
-                            aria-valuenow={avance.porcentaje}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
+                <div className="grid-fichas-personal">
+                  {personalFiltrado.map((persona) => {
+                    const clave =
+                      persona.idPasante ??
+                      persona.codigo ??
+                      `${persona.nombres}-${persona.apellidos}`;
+                    const inactiva = persona.activo === false;
+                    const esPasante = persona.tipoContrato === "Pasante";
+                    const minutosReales =
+                      seguimientoMap[`id:${persona.idPasante}`] ??
+                      seguimientoMap[`cod:${persona.codigo}`] ??
+                      persona.minutosTrabajados ??
+                      persona.minutosTotales ??
+                      0;
+                    const avance = calcularAvanceDesdeMinutos(
+                      persona,
+                      minutosReales
+                    );
+
+                    return (
+                      <article
+                        key={clave}
+                        className={`tarjeta-persona ${inactiva ? "en-baja" : ""}`}
+                      >
+                        <div className="tarjeta-persona-cabecera">
+                          <span className="numero">
+                            {persona.codigo || `ID ${persona.idPasante}`} ·{" "}
+                            {persona.tipoContrato || "Personal"}
+                          </span>
+                          <span
+                            className={`pildora-estado ${inactiva ? "baja" : ""}`}
                           >
-                            <div
-                              className="barra-nativa-relleno"
-                              style={{ width: `${avance.porcentaje}%` }}
+                            {inactiva ? "Inactiva (Baja)" : "Activa"}
+                          </span>
+                        </div>
+
+                        <div className="tarjeta-persona-identidad">
+                          {persona.foto && (
+                            <img
+                              className="foto-miniatura-personal"
+                              alt={`Foto de ${persona.nombres}`}
+                              src={fotoUrl(persona.foto)}
                             />
-                          </div>
-                          <div className="datos-pasantia-grid">
-                            <span>
-                              <strong>Pendiente:</strong> {avance.pendiente.texto}
-                            </span>
-                            <span>
-                              <strong>Fin estimado (C#):</strong>{" "}
-                              {persona.fechaFin
-                                ? String(persona.fechaFin).slice(0, 10)
-                                : "Por calcular"}
-                            </span>
-                          </div>
-                        </div>
-                      ) : !esEncargado ? (
-                        <div className="bloque-planta-nativo">
-                          <strong>Personal de planta:</strong> horasRequeridas:{" "}
-                          {persona.horasRequeridas ?? 0} · Sin meta de horas ni fin
-                          de pasantía.
-                        </div>
-                      ) : null}
-
-                      {!esEncargado && (
-                        <div className="acciones-tarjeta no-imprimir">
-                          <button
-                            type="button"
-                            className="btn-personal"
-                            onClick={() => abrirEdicionCompleta(persona)}
-                            disabled={ocupado}
-                          >
-                            Editar ficha
-                          </button>
-
-                          {esPasante && persona.idPasante && (
-                            <button
-                              type="button"
-                              className="btn-personal btn-personal-secundario"
-                              onClick={() => recalcularFinPasante(persona)}
-                              disabled={ocupado}
-                            >
-                              Recalcular fin
-                            </button>
                           )}
-
-                          {!inactiva && persona.idPasante ? (
-                            <button
-                              type="button"
-                              className="btn-personal btn-personal-baja"
-                              onClick={() => darDeBajaLogica(persona)}
-                              disabled={ocupado}
-                            >
-                              Dar de baja
-                            </button>
-                          ) : (
-                            inactiva && (
-                              <button
-                                type="button"
-                                className="btn-personal btn-personal-secundario"
-                                onClick={() => reactivarPersona(persona)}
-                                disabled={ocupado}
+                          <div>
+                            <h3>
+                              {persona.nombreCompleto ||
+                                `${persona.nombres || ""} ${
+                                  persona.apellidos || ""
+                                }`.trim()}
+                            </h3>
+                            <p className="submeta">
+                              {persona.turno || "Sin turno especificado"}
+                              {persona.diasTrabajo ? ` · ${persona.diasTrabajo}` : ""}
+                              {persona.fechaInicio
+                                ? ` · Ingreso: ${String(persona.fechaInicio).slice(
+                                    0,
+                                    10
+                                  )}`
+                                : ""}
+                            </p>
+                            {(persona.nombreDepartamento ||
+                              persona.ci ||
+                              persona.universidad) && (
+                              <div
+                                className="etiquetas"
+                                style={{ marginTop: "8px" }}
                               >
-                                Reactivar
-                              </button>
-                            )
-                          )}
+                                {persona.nombreDepartamento && (
+                                  <span>{persona.nombreDepartamento}</span>
+                                )}
+                                {persona.ci && <span>CI: {persona.ci}</span>}
+                                {persona.universidad && (
+                                  <span>{persona.universidad}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
 
-                          {persona.idPasante && (
+                        {/* Bloque de Marca (pasantes), Proyecto actual y Próximo destino */}
+                        <div className="bloque-proyectos-persona">
+                          <div>
+                            <small>Marca (pasantes)</small>
+                            <strong>
+                              {esPasante
+                                ? persona.nombreMarca || "General"
+                                : "No aplica"}
+                            </strong>
+                          </div>
+                          <div>
+                            <small>Proyecto actual</small>
+                            <strong>
+                              {persona.proyectoActual || "Sin asignar"}
+                            </strong>
+                          </div>
+                          <div>
+                            <small>Próximo destino</small>
+                            <strong>{persona.proximoProyecto || "—"}</strong>
+                          </div>
+                        </div>
+
+                        {/* Regla estricta: Pasante muestra meta y avance desde asistencias reales; Planta muestra 0 horas */}
+                        {esPasante && avance ? (
+                          <div className="bloque-progreso-nativo">
+                            <div className="fila-progreso">
+                              <span>
+                                Cumplido (asistencias reales):{" "}
+                                {avance.cumplido.texto} de {avance.horasRequeridas} h
+                              </span>
+                              <span>{avance.porcentaje}%</span>
+                            </div>
+                            <div
+                              className="barra-nativa-fondo"
+                              role="progressbar"
+                              aria-valuenow={avance.porcentaje}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                            >
+                              <div
+                                className="barra-nativa-relleno"
+                                style={{ width: `${avance.porcentaje}%` }}
+                              />
+                            </div>
+                            <div className="datos-pasantia-grid">
+                              <span>
+                                <strong>Pendiente:</strong> {avance.pendiente.texto}
+                              </span>
+                              <span>
+                                <strong>Fin estimado (C#):</strong>{" "}
+                                {persona.fechaFin
+                                  ? String(persona.fechaFin).slice(0, 10)
+                                  : "Por calcular"}
+                              </span>
+                            </div>
+                          </div>
+                        ) : !esEncargado ? (
+                          <div className="bloque-planta-nativo">
+                            <strong>Personal de planta:</strong> horasRequeridas:{" "}
+                            {persona.horasRequeridas ?? 0} · Sin meta de horas ni fin
+                            de pasantía.
+                          </div>
+                        ) : null}
+
+                        {!esEncargado && (
+                          <div className="acciones-tarjeta no-imprimir">
                             <button
                               type="button"
                               className="btn-personal"
-                              onClick={() => abrirDetalleIndividual(persona)}
+                              onClick={() => abrirEdicionCompleta(persona)}
                               disabled={ocupado}
                             >
-                              Historial real
+                              Editar ficha
                             </button>
-                          )}
 
-                          <button
-                            type="button"
-                            className="btn-personal"
-                            onClick={() => setCredencialActiva(persona)}
-                          >
-                            Credencial
-                          </button>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
+                            <button
+                              type="button"
+                              className="btn-personal btn-personal-secundario"
+                              onClick={() => abrirCambioProyecto(persona)}
+                              disabled={ocupado}
+                            >
+                              Cambiar proyecto / grupo
+                            </button>
+
+                            {esPasante && persona.idPasante && (
+                              <button
+                                type="button"
+                                className="btn-personal btn-personal-secundario"
+                                onClick={() => recalcularFinPasante(persona)}
+                                disabled={ocupado}
+                              >
+                                Recalcular fin
+                              </button>
+                            )}
+
+                            {!inactiva && persona.idPasante ? (
+                              <button
+                                type="button"
+                                className="btn-personal btn-personal-baja"
+                                onClick={() => darDeBajaLogica(persona)}
+                                disabled={ocupado}
+                              >
+                                Dar de baja
+                              </button>
+                            ) : (
+                              inactiva && (
+                                <button
+                                  type="button"
+                                  className="btn-personal btn-personal-secundario"
+                                  onClick={() => reactivarPersona(persona)}
+                                  disabled={ocupado}
+                                >
+                                  Reactivar
+                                </button>
+                              )
+                            )}
+
+                            {persona.idPasante && (
+                              <button
+                                type="button"
+                                className="btn-personal"
+                                onClick={() => abrirDetalleIndividual(persona)}
+                                disabled={ocupado}
+                              >
+                                Historial real
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              className="btn-personal"
+                              onClick={() => setCredencialActiva(persona)}
+                            >
+                              Credencial
+                            </button>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </section>
         </>
