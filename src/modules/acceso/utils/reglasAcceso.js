@@ -83,8 +83,8 @@ export function validarRegistroEncargado(datos = {}, usuariosExistentes = []) {
 
   if (!usuario) {
     errores.usuario = "El nombre de usuario es obligatorio.";
-  } else if (usuario.length < 3 || usuario.length > 50) {
-    errores.usuario = "El nombre de usuario debe tener entre 3 y 50 caracteres.";
+  } else if (usuario.length < 2 || usuario.length > 50) {
+    errores.usuario = "Indique un nombre de usuario entre 2 y 50 caracteres.";
   } else if (/\s/.test(usuario)) {
     errores.usuario = "El nombre de usuario no debe contener espacios.";
   }
@@ -173,8 +173,8 @@ export function validarUsuarioGuardar(
     errores.permisos = "Su rol no tiene autorización para administrar cuentas de usuario.";
   }
 
-  if (!nombreUsuario || nombreUsuario.length < 3) {
-    errores.nombreUsuario = "El nombre de usuario debe tener al menos 3 caracteres.";
+  if (!nombreUsuario || nombreUsuario.length < 2) {
+    errores.nombreUsuario = "Indique un nombre de usuario entre 2 y 50 caracteres.";
   } else if (nombreUsuario.length > 50) {
     errores.nombreUsuario = "El nombre de usuario no puede superar 50 caracteres.";
   } else if (/\s/.test(nombreUsuario)) {
@@ -213,11 +213,11 @@ export function validarUsuarioGuardar(
 
   // Al crear (idUsuario === 0) la contraseña es obligatoria; al editar (idUsuario > 0) vacía conserva la actual
   if (idUsuario === 0) {
-    if (!password || password.length < 6) {
-      errores.password = "Para una cuenta nueva, ingrese una contraseña de al menos 6 caracteres.";
+    if (!password || password.length < 8) {
+      errores.password = "La contraseña debe tener al menos 8 caracteres.";
     }
-  } else if (password && password.length < 6) {
-    errores.password = "Si desea cambiar la contraseña, debe tener al menos 6 caracteres (o déjela vacía para conservar la actual).";
+  } else if (password && password.length < 8) {
+    errores.password = "La contraseña debe tener al menos 8 caracteres (o déjela vacía para conservar la actual).";
   }
 
   // Evitar dejar el sistema sin ningún SuperAdmin activo

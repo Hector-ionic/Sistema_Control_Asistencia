@@ -225,7 +225,7 @@ export default function UsuarioForm({
             placeholder={
               esEdicion
                 ? "Dejar vacío para conservar la clave actual"
-                : "Mínimo 6 caracteres"
+                : "Mínimo 8 caracteres"
             }
             value={form.password}
             onChange={handleChange}
