@@ -35,8 +35,8 @@ export default function Operaciones({ modulo }) {
   const [tokenSesion, setTokenSesion] = useState(() => obtenerTokenMemoria());
   const [usuarioActual, setUsuarioActual] = useState(() => obtenerSesionMemoria());
   const [credencialesLogin, setCredencialesLogin] = useState({
-    usuario: "superadmin",
-    password: "clave-de-prueba"
+    usuario: "",
+    password: ""
   });
 
   const [cargando, setCargando] = useState(false);
@@ -179,6 +179,7 @@ export default function Operaciones({ modulo }) {
     cerrarSesionMemoria();
     setTokenSesion("");
     setUsuarioActual(null);
+    setCredencialesLogin({ usuario: "", password: "" });
     setProyectos([]);
     setAsignaciones([]);
     setViaticos([]);
@@ -544,7 +545,7 @@ export default function Operaciones({ modulo }) {
             Iniciar sesión para acceder a Proyectos y Viáticos
           </h3>
           <p className="op-ayuda" style={{ marginBottom: "14px" }}>
-            Ingrese sus credenciales para consultar y registrar operaciones. (En modo de prueba puede ingresar con <strong>superadmin</strong>, <strong>admin</strong> o <strong>encargado</strong>).
+            Ingrese su usuario y contraseña para consultar y registrar operaciones.
           </p>
 
           <form onSubmit={handleIniciarSesion}>
