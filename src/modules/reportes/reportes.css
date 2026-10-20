@@ -1,0 +1,449 @@
+/* Estilos del Módulo 04 (Historial y reportes) alineados a src/styles.css
+   y con soporte nativo para Impresión A4 / PDF y Responsividad Móvil (900px, 700px, 360px, 320px). */
+
+.mod-reportes {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.mod-reportes-cabecera-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.mod-reportes-acciones-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Botones táctiles >= 44x44px */
+.btn-reporte {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #cedbc7;
+  background: #ffffff;
+  color: #173c32;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.btn-reporte:hover:not(:disabled) {
+  background: #edf3e5;
+}
+
+.btn-reporte:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-reporte-primario {
+  background: #173c32;
+  color: #ffffff;
+  border-color: #173c32;
+}
+
+.btn-reporte-primario:hover:not(:disabled) {
+  background: #1c624b;
+  border-color: #1c624b;
+}
+
+.btn-reporte-secundario {
+  background: #edf3e5;
+  color: #173c32;
+  border-color: #cedbc7;
+}
+
+.btn-reporte-activo {
+  background: #173c32;
+  color: #ffffff;
+  border-color: #173c32;
+}
+
+/* Indicadores y tarjetas de resumen */
+.mod-reportes-indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.caja-indicador-rep {
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.caja-indicador-rep.destacada {
+  background: #edf3e5;
+}
+
+.caja-indicador-rep .valor-grande {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.8px;
+  color: #173c32;
+  line-height: 1.15;
+}
+
+.caja-indicador-rep .subtexto {
+  font-size: 12px;
+  color: #657763;
+  line-height: 1.4;
+}
+
+/* Avisos y alertas */
+.aviso-reportes {
+  padding: 16px 20px;
+  background: #edf3e5;
+  border: 1px solid #cedbc7;
+  border-radius: 9px;
+  color: #173c32;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.aviso-reportes.alerta {
+  background: #f5f6f1;
+  border-color: #becdc2;
+}
+
+/* Pestañas de navegación de reportes */
+.pestanas-reportes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 1px solid #dce4d6;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+/* Filtros */
+.filtros-grid-reportes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.campo-rep {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.campo-rep label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #173c32;
+}
+
+.input-rep,
+.select-rep {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #cedbc7;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  color: #173c32;
+  background: #ffffff;
+}
+
+.input-rep:focus-visible,
+.select-rep:focus-visible {
+  outline: 3px solid #6eac84;
+  outline-offset: 2px;
+  border-color: #1c624b;
+}
+
+.acciones-barra-reportes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #dce4d6;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.grupo-exportacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Tablas de reportes */
+.tabla-contenedor-rep {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.tabla-reportes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+  color: #173c32;
+}
+
+.tabla-reportes th {
+  background: #edf3e5;
+  color: #173c32;
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 1px solid #cedbc7;
+  white-space: nowrap;
+}
+
+.tabla-reportes td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #eef2ea;
+  vertical-align: middle;
+}
+
+.tabla-reportes tbody tr:hover {
+  background: #f5f6f1;
+}
+
+.tabla-reportes tfoot td {
+  background: #f5f6f1;
+  font-weight: 700;
+  border-top: 2px solid #cedbc7;
+  padding: 12px 14px;
+}
+
+.insignia-rep {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #edf3e5;
+  color: #173c32;
+  border: 1px solid #cedbc7;
+}
+
+.insignia-rep.planta {
+  background: #f5f6f1;
+  color: #526c5c;
+}
+
+.barra-mini-progreso {
+  width: 100%;
+  min-width: 110px;
+  height: 8px;
+  background: #d5dfcf;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.barra-mini-relleno {
+  height: 100%;
+  background: #1c624b;
+  border-radius: 999px;
+}
+
+/* Paginador */
+.paginacion-reportes {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #173c32;
+}
+
+.paginacion-controles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Ficha de Reporte Individual */
+.ficha-individual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0 22px;
+}
+
+.bloque-dato-ind {
+  padding: 14px 16px;
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bloque-dato-ind small {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #657763;
+  letter-spacing: 0.5px;
+}
+
+/* Encabezado exclusivo para Impresión A4 */
+.encabezado-impresion-a4 {
+  display: none;
+}
+
+.solo-impresion-a4 {
+  display: none;
+}
+
+/* Responsividad móvil obligatoria (900px, 700px, 360px, 320px) */
+@media (max-width: 900px) {
+  .mod-reportes-indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ficha-individual-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .mod-reportes-cabecera-top,
+  .mod-reportes-acciones-top,
+  .acciones-barra-reportes,
+  .grupo-exportacion,
+  .paginacion-reportes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mod-reportes-acciones-top .btn-reporte,
+  .grupo-exportacion .btn-reporte,
+  .pestanas-reportes .btn-reporte {
+    width: 100%;
+  }
+  .mod-reportes-indicadores,
+  .filtros-grid-reportes,
+  .ficha-individual-grid {
+    grid-template-columns: 1fr;
+  }
+  .paginacion-controles {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 360px) {
+  .caja-indicador-rep {
+    padding: 14px;
+  }
+  .btn-reporte {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 320px) {
+  .caja-indicador-rep .valor-grande {
+    font-size: 22px;
+  }
+}
+
+/* Configuración oficial de Impresión A4 y Guardado PDF desde el navegador */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  header,
+  footer,
+  .volver,
+  .introduccion,
+  .no-imprimir,
+  .mod-reportes-acciones-top,
+  .pestanas-reportes,
+  .acciones-barra-reportes,
+  .paginacion-reportes {
+    display: none !important;
+  }
+
+  .encabezado-impresion-a4 {
+    display: block !important;
+    border-bottom: 2px solid #173c32;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+
+  .solo-impresion-a4 {
+    display: block !important;
+  }
+
+  .ocultar-en-impresion {
+    display: none !important;
+  }
+
+  .detalle-modulo {
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .tabla-contenedor-rep {
+    overflow: visible !important;
+    border: 1px solid #173c32 !important;
+  }
+
+  .tabla-reportes {
+    font-size: 10.5pt !important;
+    width: 100% !important;
+  }
+
+  .tabla-reportes thead {
+    display: table-header-group !important;
+  }
+
+  .tabla-reportes tfoot {
+    display: table-footer-group !important;
+  }
+
+  .tabla-reportes tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
