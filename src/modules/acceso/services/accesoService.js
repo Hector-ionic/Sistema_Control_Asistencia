@@ -45,15 +45,15 @@ function crearMemoriaInicialAcceso() {
 }
 
 export function obtenerTokenAccesoMemoria() {
-  return tokenAccesoEnMemoria;
+  return tokenAccesoEnMemoria || globalThis.__SESION_MEMORIA_SII__?.token || "";
 }
 
 export function obtenerSesionAccesoMemoria() {
-  return usuarioAccesoEnMemoria;
+  return usuarioAccesoEnMemoria || globalThis.__SESION_MEMORIA_SII__?.usuario || null;
 }
 
 export function obtenerExpiracionSesionMemoria() {
-  return expiraEnTimestamp;
+  return expiraEnTimestamp || globalThis.__SESION_MEMORIA_SII__?.expiraEnTimestamp || 0;
 }
 
 export function establecerSesionAccesoMemoria(
@@ -67,6 +67,13 @@ export function establecerSesionAccesoMemoria(
   expiraEnTimestamp = tokenAccesoEnMemoria
     ? Date.now() + Number(expiresInSegundos || 28800) * 1000
     : 0;
+  globalThis.__SESION_MEMORIA_SII__ = tokenAccesoEnMemoria
+    ? {
+        token: tokenAccesoEnMemoria,
+        usuario: usuarioAccesoEnMemoria,
+        expiraEnTimestamp
+      }
+    : null;
 }
 
 export function cerrarSesionAccesoMemoria() {
@@ -74,6 +81,7 @@ export function cerrarSesionAccesoMemoria() {
   usuarioAccesoEnMemoria = null;
   expiraEnTimestamp = 0;
   sesionMarcadaVencida = false;
+  globalThis.__SESION_MEMORIA_SII__ = null;
 }
 
 /**
@@ -83,6 +91,7 @@ export function cerrarSesionAccesoMemoria() {
 export function forzarVencimientoSesionMemoria() {
   sesionMarcadaVencida = true;
   expiraEnTimestamp = Date.now() - 1000;
+  globalThis.__SESION_MEMORIA_SII__ = null;
 }
 
 export function reiniciarMemoriaSimuladaAcceso() {
@@ -98,7 +107,7 @@ export function reiniciarMemoriaSimuladaAcceso() {
 export async function llamar(
   operacion,
   datos = {},
-  accessToken = tokenAccesoEnMemoria,
+  accessToken = obtenerTokenAccesoMemoria(),
   opcionesExtra = {}
 ) {
   const { fetchImpl = fetch } = opcionesExtra;
@@ -146,12 +155,22 @@ export async function llamar(
     sesionMarcadaVencida = false;
     expiraEnTimestamp =
       Date.now() + Number(resultado.expiresIn || 28800) * 1000;
+    globalThis.__SESION_MEMORIA_SII__ = {
+      token: tokenAccesoEnMemoria,
+      usuario: usuarioAccesoEnMemoria,
+      expiraEnTimestamp
+    };
   } else if (
     operacion === "sesion.actual" &&
     resultado &&
     typeof resultado === "object"
   ) {
     usuarioAccesoEnMemoria = resultado;
+    globalThis.__SESION_MEMORIA_SII__ = {
+      token: tokenAccesoEnMemoria,
+      usuario: usuarioAccesoEnMemoria,
+      expiraEnTimestamp
+    };
   }
 
   return resultado;
