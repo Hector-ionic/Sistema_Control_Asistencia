@@ -331,6 +331,8 @@ export default function PanelIncidenciasQr({
   // 3. INTEGRACIÓN QR Y REVISIÓN DE SOLICITUDES (qr.existe, qr.emitir, qr.pendientes, qr.solicitudes, qr.revisar)
   // ============================================================================
   const [credencialEmitida, setCredencialEmitida] = useState(null);
+  const [basePortalQr, setBasePortalQr] = useState("http://localhost:5088");
+  const [mensajeErrorQrPorId, setMensajeErrorQrPorId] = useState({});
   const [estadoQrServidor, setEstadoQrServidor] = useState({
     existe: qrExiste,
     pendientes: pendientesQr,
@@ -358,7 +360,9 @@ export default function PanelIncidenciasQr({
     if (!q) return base;
     return base.filter((sq) => {
       const codigo = String(sq.codigo || "").toLowerCase();
-      const nombre = String(sq.nombreCompleto || sq.nombres || "").toLowerCase();
+      const nombre = String(
+        sq.nombrePersonal || sq.nombreCompleto || sq.nombres || ""
+      ).toLowerCase();
       const accion = String(sq.accion || "").toLowerCase();
       return codigo.includes(q) || nombre.includes(q) || accion.includes(q);
     });
@@ -651,6 +655,11 @@ export default function PanelIncidenciasQr({
     }
 
     setErrorRevisionQrId(null);
+    setMensajeErrorQrPorId((prev) => {
+      const copia = { ...prev };
+      delete copia[idQr];
+      return copia;
+    });
     setOcupadoLocal(true);
     onNotificarError?.("");
     onNotificarAviso?.("");
@@ -671,7 +680,9 @@ export default function PanelIncidenciasQr({
         manejarConsultarEstadoQr(soloPendientesQr)
       ]);
     } catch (err) {
-      onNotificarError?.(err.message || "No se pudo revisar la solicitud QR.");
+      const msgError = err.message || "No se pudo revisar la solicitud QR.";
+      setMensajeErrorQrPorId((prev) => ({ ...prev, [idQr]: msgError }));
+      onNotificarError?.(msgError);
     } finally {
       setOcupadoLocal(false);
     }
@@ -1560,23 +1571,130 @@ export default function PanelIncidenciasQr({
               </small>
             )}
 
-            {credencialEmitida && (
-              <div className="caja-reintento-uuid" style={{ marginTop: "12px" }}>
-                <strong>Credencial QR emitida por el servidor C#:</strong>
-                <pre
-                  style={{
-                    margin: "6px 0 0",
-                    fontSize: "12px",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-all"
-                  }}
-                >
-                  {typeof credencialEmitida === "string"
-                    ? credencialEmitida
-                    : JSON.stringify(credencialEmitida, null, 2)}
-                </pre>
-              </div>
-            )}
+            {credencialEmitida && (() => {
+              const tokenQr =
+                typeof credencialEmitida === "string"
+                  ? credencialEmitida
+                  : credencialEmitida?.token || "";
+              const lugarQr = credencialEmitida?.lugar || "Oficina";
+              const baseLimpia = String(basePortalQr || "http://localhost:5088")
+                .trim()
+                .replace(/\/$/, "");
+              const urlMarcacionQr = tokenQr
+                ? `${baseLimpia}/marcar/${tokenQr}`
+                : "";
+              const urlImagenQr = urlMarcacionQr
+                ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(
+                    urlMarcacionQr
+                  )}`
+                : "";
+
+              return (
+                <div className="caja-reintento-uuid" style={{ marginTop: "14px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "8px"
+                    }}
+                  >
+                    <strong>
+                      Cartel QR Oficial emitido ({lugarQr})
+                    </strong>
+                    <span className="pastilla-estado activa">Listo para escanear</span>
+                  </div>
+
+                  <div className="campo-asist" style={{ marginTop: "10px" }}>
+                    <label htmlFor="qr-base-url">
+                      Dirección del portal QR (Local o IP Wi-Fi del servidor C#)
+                    </label>
+                    <input
+                      id="qr-base-url"
+                      className="input-asist"
+                      type="text"
+                      value={basePortalQr}
+                      onChange={(e) => setBasePortalQr(e.target.value)}
+                      placeholder="Ej. http://localhost:5088 o http://192.168.44.1:5087"
+                    />
+                  </div>
+
+                  {urlImagenQr && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "10px",
+                        background: "#ffffff",
+                        border: "1px solid #c5d4c0",
+                        borderRadius: "12px",
+                        padding: "16px",
+                        marginTop: "12px",
+                        textAlign: "center"
+                      }}
+                    >
+                      <strong style={{ fontSize: "15px", color: "#173c32" }}>
+                        OFICINA SANTIAGO II · MARCACIÓN POR QR
+                      </strong>
+                      <img
+                        src={urlImagenQr}
+                        alt="Código QR de marcación de oficina"
+                        width={220}
+                        height={220}
+                        style={{
+                          borderRadius: "8px",
+                          border: "1px solid #e2ebe0"
+                        }}
+                      />
+                      <small
+                        style={{
+                          wordBreak: "break-all",
+                          color: "#35523d",
+                          fontSize: "12px"
+                        }}
+                      >
+                        Enlace directo:{" "}
+                        <a
+                          href={urlMarcacionQr}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontWeight: 700, color: "#173c32" }}
+                        >
+                          {urlMarcacionQr}
+                        </a>
+                      </small>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          flexWrap: "wrap",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <a
+                          href={urlMarcacionQr}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-asist btn-asist-primario"
+                          style={{ textDecoration: "none" }}
+                        >
+                          Abrir formulario de marcación QR
+                        </a>
+                        <button
+                          type="button"
+                          className="btn-asist"
+                          onClick={() => window.print()}
+                        >
+                          Imprimir / Guardar Cartel QR
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Columna derecha: Bandeja de Solicitudes QR (qr.solicitudes · qr.revisar) */}
@@ -1636,6 +1754,7 @@ export default function PanelIncidenciasQr({
                   const idSq = sq.id || sq.idSolicitud;
                   const ficha = mapaPersonalPorCodigo.get(sq.codigo);
                   const nombrePersona =
+                    sq.nombrePersonal ||
                     sq.nombreCompleto ||
                     (ficha
                       ? ficha.nombreCompleto ||
@@ -1643,6 +1762,7 @@ export default function PanelIncidenciasQr({
                       : "");
                   const estadoSq = sq.estado || "Pendiente";
                   const faltaMotivoQr = errorRevisionQrId === idSq;
+                  const errorEspecificoQr = mensajeErrorQrPorId[idSq];
 
                   return (
                     <article key={idSq} className="item-revision-asist">
@@ -1666,7 +1786,12 @@ export default function PanelIncidenciasQr({
                       </div>
 
                       <small className="subtexto-asist" style={{ display: "block" }}>
-                        Fecha y hora:{" "}
+                        {sq.fechaEscaneo
+                          ? `Escaneo: ${String(sq.fechaEscaneo)
+                              .replace("T", " ")
+                              .slice(0, 19)} · `
+                          : ""}
+                        Solicitud:{" "}
                         {String(
                           sq.fechaSolicitud || sq.creada || sq.fecha || "—"
                         )
@@ -1677,6 +1802,24 @@ export default function PanelIncidenciasQr({
                           ? ` · Nota: ${sq.motivo || sq.respuesta}`
                           : ""}
                       </small>
+
+                      {errorEspecificoQr && (
+                        <div
+                          className="aviso-asistencia alerta"
+                          style={{
+                            marginTop: "8px",
+                            padding: "8px 10px",
+                            fontSize: "12px"
+                          }}
+                        >
+                          <span>
+                            <strong>Rechazado por reglas C#:</strong>{" "}
+                            {errorEspecificoQr} (Si la hora de escaneo ya quedó
+                            atrás respecto a otra marcación de hoy, rechace esta
+                            solicitud con un motivo).
+                          </span>
+                        </div>
+                      )}
 
                       {!esEncargado && estadoSq === "Pendiente" && (
                         <div className="acciones-revision-inline">
