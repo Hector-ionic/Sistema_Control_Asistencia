@@ -35,8 +35,8 @@ export default function Operaciones({ modulo }) {
   const [tokenSesion, setTokenSesion] = useState(() => obtenerTokenMemoria());
   const [usuarioActual, setUsuarioActual] = useState(() => obtenerSesionMemoria());
   const [credencialesLogin, setCredencialesLogin] = useState({
-    usuario: "superadmin",
-    password: "clave-de-prueba"
+    usuario: "",
+    password: ""
   });
 
   const [cargando, setCargando] = useState(false);
@@ -75,7 +75,7 @@ export default function Operaciones({ modulo }) {
         if (!activo) return;
         if (res.ok) {
           setUsarContratoMemoria(false);
-          setEstadoBackend("Conectado al servidor (/api/backend)");
+          setEstadoBackend("Conectado al servidor");
         } else {
           setUsarContratoMemoria(true);
           setEstadoBackend("Modo de prueba en memoria activo");
@@ -450,7 +450,7 @@ export default function Operaciones({ modulo }) {
               setEstadoBackend(
                 usarMem
                   ? "Modo de prueba en memoria activo"
-                  : "Conectado al servidor (/api/backend)"
+                  : "Conectado al servidor"
               );
             }}
           >
@@ -458,7 +458,7 @@ export default function Operaciones({ modulo }) {
               Servidor real (/api/backend · API C# + Base de datos)
             </option>
             <option value="memoria">
-              Modo de prueba en memoria (sin servidor de escritorio)
+              Modo de prueba en memoria
             </option>
           </select>
         </div>
