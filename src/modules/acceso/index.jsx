@@ -669,7 +669,7 @@ export default function Acceso({ modulo }) {
               <div className="acc-form-grid">
                 <div className="acc-campo">
                   <label className="acc-label" htmlFor="m01-login-usuario">
-                    Usuario *
+                    Usuario
                   </label>
                   <input
                     id="m01-login-usuario"
@@ -690,7 +690,7 @@ export default function Acceso({ modulo }) {
 
                 <div className="acc-campo">
                   <label className="acc-label" htmlFor="m01-login-password">
-                    Contraseña *
+                    Contraseña
                   </label>
                   <input
                     id="m01-login-password"
@@ -724,7 +724,7 @@ export default function Acceso({ modulo }) {
               <div className="acc-form-grid">
                 <div className="acc-campo">
                   <label className="acc-label" htmlFor="m01-reg-usuario">
-                    Nuevo usuario (Encargado) *
+                    Nuevo usuario (Encargado)
                   </label>
                   <input
                     id="m01-reg-usuario"
@@ -751,7 +751,7 @@ export default function Acceso({ modulo }) {
 
                 <div className="acc-campo">
                   <label className="acc-label" htmlFor="m01-reg-password">
-                    Contraseña (mínimo 8 caracteres) *
+                    Contraseña (mínimo 8 caracteres)
                   </label>
                   <input
                     id="m01-reg-password"
@@ -776,7 +776,7 @@ export default function Acceso({ modulo }) {
 
                 <div className="acc-campo">
                   <label className="acc-label" htmlFor="m01-reg-confirmar">
-                    Confirmar contraseña *
+                    Confirmar contraseña
                   </label>
                   <input
                     id="m01-reg-confirmar"

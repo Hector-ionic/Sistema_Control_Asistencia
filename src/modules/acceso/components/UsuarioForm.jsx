@@ -161,7 +161,7 @@ export default function UsuarioForm({
       <div className="acc-form-grid">
         <div className="acc-campo">
           <label className="acc-label" htmlFor="acc-nombreUsuario">
-            Nombre de usuario *
+            Nombre de usuario
           </label>
           <input
             id="acc-nombreUsuario"
@@ -184,7 +184,7 @@ export default function UsuarioForm({
 
         <div className="acc-campo">
           <label className="acc-label" htmlFor="acc-rol">
-            Rol del usuario *
+            Rol del usuario
           </label>
           <select
             id="acc-rol"
@@ -215,7 +215,7 @@ export default function UsuarioForm({
 
         <div className="acc-campo">
           <label className="acc-label" htmlFor="acc-password">
-            {esEdicion ? "Nueva contraseña (opcional)" : "Contraseña inicial *"}
+            {esEdicion ? "Nueva contraseña (opcional)" : "Contraseña inicial"}
           </label>
           <input
             id="acc-password"

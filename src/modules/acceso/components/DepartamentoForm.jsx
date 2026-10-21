@@ -94,7 +94,7 @@ export default function DepartamentoForm({
       <div className="acc-form-grid">
         <div className="acc-campo">
           <label className="acc-label" htmlFor="dep-nombre">
-            Nombre del área / departamento *
+            Nombre del área / departamento
           </label>
           <input
             id="dep-nombre"

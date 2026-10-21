@@ -108,7 +108,7 @@ export default function ConfiguracionForm({
       <div className="acc-form-grid">
         <div className="acc-campo acc-campo-completo">
           <label className="acc-label" htmlFor="cfg-nombreInstitucion">
-            Nombre de la institución / sede *
+            Nombre de la institución / sede
           </label>
           <input
             id="cfg-nombreInstitucion"
@@ -131,7 +131,7 @@ export default function ConfiguracionForm({
 
         <div className="acc-campo">
           <label className="acc-label" htmlFor="cfg-horaEntradaEsperada">
-            Hora de entrada esperada *
+            Hora de entrada esperada
           </label>
           <input
             id="cfg-horaEntradaEsperada"
@@ -155,7 +155,7 @@ export default function ConfiguracionForm({
 
         <div className="acc-campo">
           <label className="acc-label" htmlFor="cfg-horaSalidaEsperada">
-            Hora de salida esperada *
+            Hora de salida esperada
           </label>
           <input
             id="cfg-horaSalidaEsperada"
@@ -179,7 +179,7 @@ export default function ConfiguracionForm({
 
         <div className="acc-campo">
           <label className="acc-label" htmlFor="cfg-toleranciaMinutos">
-            Tolerancia de ingreso (minutos) *
+            Tolerancia de ingreso (minutos)
           </label>
           <input
             id="cfg-toleranciaMinutos"
