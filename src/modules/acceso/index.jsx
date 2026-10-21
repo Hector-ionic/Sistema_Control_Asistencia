@@ -1508,7 +1508,7 @@ export default function Acceso({ modulo }) {
                         id="filtro-auditoria"
                         type="search"
                         className="acc-input"
-                        placeholder="Buscar por nombre de usuario, acci?n o detalle..."
+                        placeholder="Buscar por nombre de usuario, acción o detalle..."
                         value={busquedaAuditoria}
                         onChange={(e) => setBusquedaAuditoria(e.target.value)}
                       />
@@ -1563,32 +1563,6 @@ export default function Acceso({ modulo }) {
           )}
         </>
       )}
-
-      {/* Resumen de Criterios de Aceptación (Módulo 01) */}
-      <section
-        className="acc-form-panel acc-no-print"
-        aria-label="Criterios de aceptación del Módulo 01"
-      >
-        <h3 style={{ marginTop: 0, marginBottom: "8px" }}>
-          Criterios de aceptación (Módulo 01)
-        </h3>
-        <ul style={{ margin: 0, paddingLeft: "20px", color: "#2d4236", lineHeight: 1.55 }}>
-          <li>
-            <strong>Inicio y cierre de sesión con API:</strong> Autenticación mediante{" "}
-            <code>POST /api/backend</code> (<code>sesion</code>, <code>sesion.actual</code> y{" "}
-            <code>registro-encargado</code>) con token guardado exclusivamente en memoria.
-          </li>
-          <li>
-            <strong>Rechazo de acciones prohibidas en backend (403):</strong> La autoridad es la sesión validada en el servidor; solo <code>SuperAdmin</code> designa administradores, elimina cuentas, modifica la configuración institucional o consulta la bitácora de auditoría.
-          </li>
-          <li>
-            <strong>Vencimiento y recuperación de sesión (401):</strong> Cuando la sesión vence o es invalidada, se limpia el estado en memoria y se regresa automáticamente a la pantalla de acceso.
-          </li>
-          <li>
-            <strong>Configuración y auditoría completa:</strong> Administración de cuentas y activación, horarios predeterminados (<code>horaEntradaEsperada</code>, <code>horaSalidaEsperada</code>, <code>toleranciaMinutos</code>), áreas/departamentos y marcas con registro de auditoría en cada cambio.
-          </li>
-        </ul>
-      </section>
     </div>
   );
 }
