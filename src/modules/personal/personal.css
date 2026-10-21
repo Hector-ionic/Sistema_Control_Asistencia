@@ -1,0 +1,589 @@
+/* Estilos del Módulo 02 alineados al sistema de diseño original de src/styles.css
+   y al contrato real de C# / PostgreSQL (/api/backend). */
+
+.mod-personal {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.mod-personal-cabecera-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.mod-personal-acciones-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Controles táctiles >= 44x44px */
+.btn-personal {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #cedbc7;
+  background: #ffffff;
+  color: #173c32;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.btn-personal:hover:not(:disabled) {
+  background: #edf3e5;
+}
+
+.btn-personal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-personal-primario {
+  background: #173c32;
+  color: #ffffff;
+  border-color: #173c32;
+}
+
+.btn-personal-primario:hover:not(:disabled) {
+  background: #1c624b;
+  border-color: #1c624b;
+}
+
+.btn-personal-secundario {
+  background: #edf3e5;
+  color: #173c32;
+  border-color: #cedbc7;
+}
+
+.btn-personal-baja {
+  background: #ffffff;
+  color: #526c5c;
+  border-color: #cedbc7;
+}
+
+/* Indicadores */
+.mod-personal-indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.caja-indicador {
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.caja-indicador.destacada {
+  background: #edf3e5;
+}
+
+.caja-indicador .valor-grande {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  color: #173c32;
+  line-height: 1.1;
+}
+
+.caja-indicador .subtexto {
+  font-size: 12px;
+  color: #657763;
+  line-height: 1.4;
+}
+
+/* Avisos */
+.aviso-personal {
+  padding: 18px 22px;
+  background: #edf3e5;
+  border: 1px solid #cedbc7;
+  border-radius: 9px;
+  color: #173c32;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.aviso-personal.aviso-alerta {
+  background: #f5f6f1;
+  border-color: #becdc2;
+}
+
+/* Formularios y filtros */
+.filtros-grid-personal {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.campo-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.campo-grupo label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #173c32;
+}
+
+.input-personal,
+.select-personal {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #cedbc7;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 15px;
+  color: #173c32;
+  background: #ffffff;
+}
+
+.input-personal:disabled,
+.select-personal:disabled {
+  background: #f5f6f1;
+  color: #73806f;
+}
+
+.input-personal:focus-visible,
+.select-personal:focus-visible {
+  outline: 3px solid #6eac84;
+  outline-offset: 2px;
+  border-color: #1c624b;
+}
+
+.error-campo {
+  font-size: 12px;
+  color: #173c32;
+  background: #e8efdf;
+  padding: 4px 8px;
+  border-left: 3px solid #1c624b;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.ayuda-campo {
+  font-size: 12px;
+  color: #73806f;
+}
+
+.form-grid-personal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.form-grid-personal .col-completa {
+  grid-column: 1 / -1;
+}
+
+.bloque-pasantia-nativo {
+  grid-column: 1 / -1;
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bloque-pasantia-nativo h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #173c32;
+  letter-spacing: -0.4px;
+}
+
+.detalles-opcionales-personal {
+  grid-column: 1 / -1;
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.detalles-opcionales-personal summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: #173c32;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.foto-miniatura-personal {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #cedbc7;
+  margin-top: 8px;
+}
+
+.acciones-formulario {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Tarjetas de personas */
+.grid-fichas-personal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.tarjeta-persona {
+  text-align: left;
+  padding: 32px;
+  background: #ffffff;
+  border: 1px solid #dce4d6;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  min-width: 0;
+}
+
+.tarjeta-persona:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 9px 25px #24492c10;
+}
+
+.tarjeta-persona.en-baja {
+  background: #f5f6f1;
+  border-color: #d5dfcf;
+}
+
+.tarjeta-persona-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tarjeta-persona-identidad {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tarjeta-persona h3 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 4px 0 6px;
+  letter-spacing: -0.6px;
+  color: #173c32;
+  overflow-wrap: anywhere;
+}
+
+.tarjeta-persona .submeta {
+  font-size: 14px;
+  color: #73806f;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.pildora-estado {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #526c5c;
+  padding: 6px 11px;
+  background: #e8efdf;
+  border-radius: 20px;
+}
+
+.pildora-estado.baja {
+  background: #ffffff;
+  border: 1px solid #cedbc7;
+  color: #73806f;
+}
+
+.bloque-progreso-nativo {
+  padding: 18px 20px;
+  background: #edf3e5;
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fila-progreso {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 700;
+  color: #173c32;
+}
+
+.barra-nativa-fondo {
+  width: 100%;
+  height: 9px;
+  background: #d5dfcf;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barra-nativa-relleno {
+  height: 100%;
+  background: #1c624b;
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.datos-pasantia-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 12px;
+  color: #526c5c;
+}
+
+.bloque-planta-nativo {
+  padding: 14px 18px;
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 9px;
+  font-size: 13px;
+  color: #657763;
+}
+
+.caja-inline-nativa {
+  padding: 18px;
+  background: #f5f6f1;
+  border: 1px solid #cedbc7;
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lista-historial-nativa {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #526c5c;
+}
+
+.acciones-tarjeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #dce4d6;
+}
+
+/* Credencial imprimible */
+.credencial-tarjeta {
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid #cedbc7;
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Tabla de Personal estilo Escritorio (Personal · Registro rápido) */
+.tabla-contenedor-personal {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #dce4d6;
+  border-radius: 12px;
+  background: #ffffff;
+  margin-bottom: 24px;
+}
+
+.tabla-personal-escritorio {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+  color: #173c32;
+}
+
+.tabla-personal-escritorio th {
+  background: #edf3e5;
+  color: #173c32;
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 1px solid #cedbc7;
+  white-space: nowrap;
+}
+
+.tabla-personal-escritorio td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #eef2ea;
+  vertical-align: middle;
+}
+
+.tabla-personal-escritorio tbody tr:hover {
+  background: #f5f6f1;
+}
+
+.tabla-personal-escritorio tbody tr.fila-inactiva {
+  opacity: 0.65;
+  background: #f9faf7;
+}
+
+.etiqueta-proyecto-actual {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #edf3e5;
+  color: #173c32;
+  border: 1px solid #cedbc7;
+}
+
+.etiqueta-sin-proyecto {
+  color: #73806f;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.bloque-proyectos-persona {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f5f6f1;
+  border: 1px solid #dce4d6;
+  border-radius: 9px;
+  font-size: 12px;
+  color: #173c32;
+}
+
+.bloque-proyectos-persona div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bloque-proyectos-persona small {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #657763;
+}
+
+/* Responsividad móvil obligatoria (900px, 700px, 360px, 320px) */
+@media (max-width: 900px) {
+  .mod-personal-indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filtros-grid-personal {
+    grid-template-columns: 1fr 1fr;
+  }
+  .grid-fichas-personal {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .mod-personal-cabecera-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mod-personal-acciones-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mod-personal-acciones-top .btn-personal {
+    width: 100%;
+  }
+  .mod-personal-indicadores {
+    grid-template-columns: 1fr;
+  }
+  .filtros-grid-personal {
+    grid-template-columns: 1fr;
+  }
+  .form-grid-personal {
+    grid-template-columns: 1fr;
+  }
+  .bloque-pasantia-nativo {
+    padding: 16px;
+  }
+  .acciones-formulario {
+    flex-direction: column;
+  }
+  .acciones-formulario .btn-personal {
+    width: 100%;
+  }
+  .tarjeta-persona {
+    padding: 24px;
+  }
+  .datos-pasantia-grid,
+  .bloque-proyectos-persona {
+    grid-template-columns: 1fr;
+  }
+  .acciones-tarjeta {
+    flex-direction: column;
+  }
+  .acciones-tarjeta .btn-personal {
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .tarjeta-persona {
+    padding: 20px 16px;
+  }
+}
+
+@media print {
+  .mod-personal-acciones-top,
+  .filtros-grid-personal,
+  .acciones-tarjeta,
+  .acciones-formulario,
+  .no-imprimir {
+    display: none !important;
+  }
+  .grid-fichas-personal {
+    grid-template-columns: 1fr;
+  }
+}
