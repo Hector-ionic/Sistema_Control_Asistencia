@@ -4,12 +4,14 @@ import {
   hoyBolivia,
   inicioMesBolivia,
   formatearMinutos,
+  formatearHoraLimpia,
   esPersonaPasante,
   calcularMetricasPasantia,
   normalizarFiltroReporte,
   conciliarAsistenciaYViaticos,
   paginarResultados,
   generarCsvReporte,
+  generarExcelTablaReporte,
   obtenerContratoBackend,
   iniciarSesion,
   obtenerSesionActual,
@@ -416,33 +418,41 @@ export default function Modulo({
     };
   }, [filtro, catalogoProyectos, catalogoPersonal]);
 
-  // Exportación CSV usando exactamente los mismos filtros y datos activos
-  function exportarVistaActualCsv() {
+  // Definición unificada de columnas y filas para exportación CSV y Excel (.xls)
+  function obtenerDatosTabularesActuales() {
+    let titulo = "Reporte de Historial de Asistencia";
     let columnas = [];
     let filas = [];
-    let nombreArchivo = `reporte-${vistaActiva}-${filtro.inicio}-a-${filtro.fin}.csv`;
+    let baseNombreArchivo = `reporte-${vistaActiva}-${filtro.inicio}-a-${filtro.fin}`;
 
     if (vistaActiva === "historial") {
+      titulo = "Historial de Asistencia por Fechas, Persona y Proyecto";
       columnas = [
         { etiqueta: "Fecha", obtener: (r) => String(r.fecha || "").slice(0, 10) },
-        { etiqueta: "Codigo", clave: "codigo" },
-        { etiqueta: "NombreCompleto", clave: "nombreCompleto" },
-        { etiqueta: "HoraEntrada", obtener: (r) => r.horaEntrada || "" },
+        { etiqueta: "Código", clave: "codigo" },
+        { etiqueta: "Nombre Completo", clave: "nombreCompleto" },
         {
-          etiqueta: "HoraInicioAlmuerzo",
-          obtener: (r) => r.horaInicioAlmuerzo || ""
+          etiqueta: "Hora Entrada",
+          obtener: (r) => formatearHoraLimpia(r.horaEntrada)
         },
         {
-          etiqueta: "HoraFinAlmuerzo",
-          obtener: (r) => r.horaFinAlmuerzo || ""
+          etiqueta: "Inicio Almuerzo",
+          obtener: (r) => formatearHoraLimpia(r.horaInicioAlmuerzo)
         },
-        { etiqueta: "HoraSalida", obtener: (r) => r.horaSalida || "" },
         {
-          etiqueta: "MinutosTrabajados",
+          etiqueta: "Fin Almuerzo",
+          obtener: (r) => formatearHoraLimpia(r.horaFinAlmuerzo)
+        },
+        {
+          etiqueta: "Hora Salida",
+          obtener: (r) => formatearHoraLimpia(r.horaSalida)
+        },
+        {
+          etiqueta: "Minutos Trabajados",
           obtener: (r) => Number(r.minutosTrabajados) || 0
         },
         {
-          etiqueta: "TiempoFormateado",
+          etiqueta: "Tiempo Formateado",
           obtener: (r) => formatearMinutos(r.minutosTrabajados).texto
         },
         { etiqueta: "Proyecto", obtener: (r) => r.proyectos || "" },
@@ -450,78 +460,80 @@ export default function Modulo({
       ];
       filas = historialFiltrado;
     } else if (vistaActiva === "seguimiento") {
+      titulo = "Seguimiento del Equipo y Horas de Pasantía";
       columnas = [
-        { etiqueta: "Codigo", clave: "codigo" },
+        { etiqueta: "Código", clave: "codigo" },
         { etiqueta: "Nombres", clave: "nombres" },
         { etiqueta: "Apellidos", clave: "apellidos" },
-        { etiqueta: "TipoPersonal", clave: "tipoContrato" },
+        { etiqueta: "Tipo de Personal", clave: "tipoContrato" },
         {
-          etiqueta: "MarcaPasantes",
+          etiqueta: "Marca (Pasantes)",
           obtener: (r) =>
             r.tipoContrato === "Pasante"
               ? r.nombreMarca || "General"
               : "No aplica"
         },
         {
-          etiqueta: "DiasAsistidosPeriodo",
+          etiqueta: "Días Asistidos Período",
           obtener: (r) => Number(r.diasAsistidosPeriodo) || 0
         },
         {
-          etiqueta: "MinutosPeriodo",
+          etiqueta: "Minutos Período",
           obtener: (r) => Number(r.minutosPeriodo) || 0
         },
         {
-          etiqueta: "TiempoPeriodo",
+          etiqueta: "Tiempo en Período",
           obtener: (r) => r.tiempoPeriodo?.texto || "0 h 00 min"
         },
         {
-          etiqueta: "MetaPasantiaHoras",
+          etiqueta: "Meta Pasantía (Horas)",
           obtener: (r) =>
             r.metricasPasantia ? r.metricasPasantia.horasRequeridas : "No aplica (Planta)"
         },
         {
-          etiqueta: "HorasCumplidasPasantia",
+          etiqueta: "Horas Cumplidas Pasantía",
           obtener: (r) =>
             r.metricasPasantia ? r.metricasPasantia.cumplido.texto : "No aplica"
         },
         {
-          etiqueta: "HorasPendientesPasantia",
+          etiqueta: "Horas Pendientes Pasantía",
           obtener: (r) =>
             r.metricasPasantia ? r.metricasPasantia.pendiente.texto : "No aplica"
         },
         {
-          etiqueta: "PorcentajeAvance",
+          etiqueta: "Porcentaje Avance",
           obtener: (r) =>
             r.metricasPasantia ? `${r.metricasPasantia.porcentaje}%` : "No aplica"
         }
       ];
       filas = seguimientoFiltrado;
     } else if (vistaActiva === "conciliacion") {
+      titulo = "Conciliación de Asistencia y Viáticos del Período";
       columnas = [
-        { etiqueta: "Codigo", clave: "codigo" },
+        { etiqueta: "Código", clave: "codigo" },
         { etiqueta: "Persona", clave: "nombreCompleto" },
-        { etiqueta: "TipoPersonal", clave: "tipoContrato" },
-        { etiqueta: "RegistrosAsistencia", clave: "registrosAsistencia" },
-        { etiqueta: "MinutosTrabajados", clave: "minutosTrabajados" },
+        { etiqueta: "Tipo de Personal", clave: "tipoContrato" },
+        { etiqueta: "Registros Asistencia", clave: "registrosAsistencia" },
+        { etiqueta: "Minutos Trabajados", clave: "minutosTrabajados" },
         {
-          etiqueta: "TiempoTrabajado",
+          etiqueta: "Tiempo Trabajado",
           obtener: (r) => r.tiempoFormateado?.texto || "0 h 00 min"
         },
-        { etiqueta: "CantidadViaticos", clave: "cantidadViaticos" },
+        { etiqueta: "Cantidad Viáticos", clave: "cantidadViaticos" },
         {
-          etiqueta: "ViaticoBaseBs",
+          etiqueta: "Viático Base (Bs)",
           obtener: (r) => r.montoViaticos.toFixed(2)
         },
         {
-          etiqueta: "GastoExtraBs",
+          etiqueta: "Gasto Extra (Bs)",
           obtener: (r) => r.gastoExtraViaticos.toFixed(2)
         },
         {
-          etiqueta: "TotalViaticosConciliadoBs",
+          etiqueta: "Total Viáticos Conciliado (Bs)",
           obtener: (r) => r.totalViaticosBs.toFixed(2)
         },
         {
-          etiqueta: "EstadoPasantia",
+          etiqueta: "Estado de Pasantía",
           obtener: (r) =>
             r.pasantia
               ? `Cumplido: ${r.pasantia.cumplido.texto} / Pendiente: ${r.pasantia.pendiente.texto}`
@@ -531,9 +543,10 @@ export default function Modulo({
       filas = conciliacion.porPersona;
     } else if (vistaActiva === "individual" && reporteIndividual?.personal) {
       const p = reporteIndividual.personal;
-      nombreArchivo = `reporte-individual-${p.codigo || p.idPasante}-${filtro.inicio}-a-${filtro.fin}.csv`;
+      titulo = `Reporte Individual — ${p.nombres || ""} ${p.apellidos || ""} (${p.codigo || ""})`;
+      baseNombreArchivo = `reporte-individual-${p.codigo || p.idPasante}-${filtro.inicio}-a-${filtro.fin}`;
       columnas = [
-        { etiqueta: "Codigo", obtener: () => p.codigo || "" },
+        { etiqueta: "Código", obtener: () => p.codigo || "" },
         {
           etiqueta: "Persona",
           obtener: () => `${p.nombres || ""} ${p.apellidos || ""}`.trim()
@@ -542,22 +555,28 @@ export default function Modulo({
           etiqueta: "Fecha",
           obtener: (r) => String(r.fecha || "").slice(0, 10)
         },
-        { etiqueta: "HoraEntrada", obtener: (r) => r.horaEntrada || "" },
         {
-          etiqueta: "HoraInicioAlmuerzo",
-          obtener: (r) => r.horaInicioAlmuerzo || ""
+          etiqueta: "Hora Entrada",
+          obtener: (r) => formatearHoraLimpia(r.horaEntrada)
         },
         {
-          etiqueta: "HoraFinAlmuerzo",
-          obtener: (r) => r.horaFinAlmuerzo || ""
+          etiqueta: "Inicio Almuerzo",
+          obtener: (r) => formatearHoraLimpia(r.horaInicioAlmuerzo)
         },
-        { etiqueta: "HoraSalida", obtener: (r) => r.horaSalida || "" },
         {
-          etiqueta: "MinutosTrabajados",
+          etiqueta: "Fin Almuerzo",
+          obtener: (r) => formatearHoraLimpia(r.horaFinAlmuerzo)
+        },
+        {
+          etiqueta: "Hora Salida",
+          obtener: (r) => formatearHoraLimpia(r.horaSalida)
+        },
+        {
+          etiqueta: "Minutos Trabajados",
           obtener: (r) => Number(r.minutosTrabajados) || 0
         },
         {
-          etiqueta: "TiempoFormateado",
+          etiqueta: "Tiempo Formateado",
           obtener: (r) => formatearMinutos(r.minutosTrabajados).texto
         },
         { etiqueta: "Observaciones", obtener: (r) => r.observaciones || "" }
@@ -566,16 +585,17 @@ export default function Modulo({
         ? reporteIndividual.asistencias
         : [];
     } else {
+      titulo = "Asignaciones de Personal a Proyectos";
       columnas = [
         { etiqueta: "Personal", clave: "nombrePersonal" },
         { etiqueta: "Proyecto", clave: "nombreProyecto" },
-        { etiqueta: "Rol", clave: "rol" },
+        { etiqueta: "Rol / Cargo", clave: "rol" },
         {
-          etiqueta: "FechaInicio",
+          etiqueta: "Fecha Inicio",
           obtener: (r) => String(r.fechaInicio || "").slice(0, 10)
         },
         {
-          etiqueta: "FechaFin",
+          etiqueta: "Fecha Fin",
           obtener: (r) => (r.fechaFin ? String(r.fechaFin).slice(0, 10) : "En curso")
         },
         {
@@ -586,43 +606,51 @@ export default function Modulo({
       filas = asignacionesFiltradas;
     }
 
+    return { titulo, columnas, filas, baseNombreArchivo };
+  }
+
+  // Exportación CSV con separador ";" para que Excel en español separe cada columna automáticamente
+  function exportarVistaActualCsv() {
+    const { columnas, filas, baseNombreArchivo } = obtenerDatosTabularesActuales();
     const csv = generarCsvReporte(columnas, filas);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement("a");
     enlace.href = url;
-    enlace.download = nombreArchivo;
+    enlace.download = `${baseNombreArchivo}.csv`;
     document.body.appendChild(enlace);
     enlace.click();
     document.body.removeChild(enlace);
     URL.revokeObjectURL(url);
     setAviso(
-      `Exportación CSV generada (${filas.length} registros) con los mismos filtros activos.`
+      `Exportación CSV generada (${filas.length} registros) ordenada por columnas para Excel.`
     );
   }
 
-  function exportarVistaActualJson() {
-    const payloadExport = {
-      generadoEnBolivia: hoyBolivia(),
-      vista: vistaActiva,
-      filtrosAplicados: resumenFiltrosTexto,
-      totalRegistros: listaActivaParaPaginar.length,
-      datos:
-        vistaActiva === "individual"
-          ? reporteIndividual
-          : listaActivaParaPaginar
-    };
-    const json = JSON.stringify(payloadExport, null, 2);
-    const blob = new Blob([json], { type: "application/json;charset=utf-8;" });
+  // Exportación de tabla formateada en Excel (.xls) con cabeceras, colores y bordes
+  function exportarVistaActualExcel() {
+    const { titulo, columnas, filas, baseNombreArchivo } =
+      obtenerDatosTabularesActuales();
+    const htmlExcel = generarExcelTablaReporte({
+      titulo,
+      filtros: resumenFiltrosTexto,
+      columnas,
+      filas
+    });
+    const blob = new Blob([htmlExcel], {
+      type: "application/vnd.ms-excel;charset=utf-8;"
+    });
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement("a");
     enlace.href = url;
-    enlace.download = `reporte-${vistaActiva}-${filtro.inicio}-a-${filtro.fin}.json`;
+    enlace.download = `${baseNombreArchivo}.xls`;
     document.body.appendChild(enlace);
     enlace.click();
     document.body.removeChild(enlace);
     URL.revokeObjectURL(url);
-    setAviso("Archivo JSON exportado con los mismos filtros y datos en vista.");
+    setAviso(
+      `Hoja de Excel (.xls) generada con tabla ordenada (${filas.length} registros).`
+    );
   }
 
   // Renderizador de filas de tabla (permite mostrar la página actual en pantalla y todas las páginas al imprimir en A4)
@@ -819,18 +847,18 @@ export default function Modulo({
                 <button
                   type="button"
                   className="btn-reporte btn-reporte-secundario"
-                  onClick={exportarVistaActualCsv}
+                  onClick={exportarVistaActualExcel}
                   disabled={ocupado}
                 >
-                  Exportar CSV (Excel)
+                  Exportar Excel (.xls)
                 </button>
                 <button
                   type="button"
                   className="btn-reporte"
-                  onClick={exportarVistaActualJson}
+                  onClick={exportarVistaActualCsv}
                   disabled={ocupado}
                 >
-                  Exportar JSON
+                  Exportar CSV
                 </button>
                 <button
                   type="button"
@@ -1019,7 +1047,7 @@ export default function Modulo({
             aria-label="Filtros de historial y reportes"
           >
             <span className="numero">
-              FILTROS UNIFICADOS (CONSULTA · IMPRESIÓN A4 · EXPORTACIÓN CSV/JSON)
+              FILTROS UNIFICADOS (CONSULTA · IMPRESIÓN A4 · EXPORTACIÓN EXCEL / CSV)
             </span>
             <form
               className="filtros-grid-reportes"
@@ -1747,10 +1775,10 @@ export default function Modulo({
                                 {paginacion.itemsPagina.map((a) => (
                                   <tr key={a.idAsistencia || a.fecha}>
                                     <td>{String(a.fecha || "").slice(0, 10)}</td>
-                                    <td>{a.horaEntrada || "—"}</td>
-                                    <td>{a.horaInicioAlmuerzo || "—"}</td>
-                                    <td>{a.horaFinAlmuerzo || "—"}</td>
-                                    <td>{a.horaSalida || "—"}</td>
+                                    <td>{formatearHoraLimpia(a.horaEntrada) || "—"}</td>
+                                    <td>{formatearHoraLimpia(a.horaInicioAlmuerzo) || "—"}</td>
+                                    <td>{formatearHoraLimpia(a.horaFinAlmuerzo) || "—"}</td>
+                                    <td>{formatearHoraLimpia(a.horaSalida) || "—"}</td>
                                     <td>
                                       <strong>{a.minutosTrabajados || 0}</strong> min (
                                       {formatearMinutos(a.minutosTrabajados).textoCorto}

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   RUTA_BACKEND,
   formatearMinutos,
+  formatearHoraLimpia,
   esPersonaPasante,
   calcularMetricasPasantia,
   normalizarFiltroReporte,
@@ -10,6 +11,7 @@ import {
   paginarResultados,
   escaparCeldaCsv,
   generarCsvReporte,
+  generarExcelTablaReporte,
   consultarReporteHistorial,
   consultarReporteSeguimiento,
   consultarReporteAsignaciones,
@@ -195,7 +197,9 @@ test("Módulo 04: paginarResultados soporta reportes con varias páginas y estad
   assert.equal(vacio.itemsPagina.length, 0);
 });
 
-test("Módulo 04: generarCsvReporte exporta todas las páginas con BOM UTF-8 y escape seguro", () => {
+test("Módulo 04: generarCsvReporte y generarExcelTablaReporte exportan columnas separadas para Excel con BOM UTF-8", () => {
+  assert.equal(formatearHoraLimpia("10:40:49.4735890"), "10:40:49");
+  assert.equal(formatearHoraLimpia("08:00:00"), "08:00:00");
   assert.equal(escaparCeldaCsv('Proyecto "A", Fase 1'), '"Proyecto ""A"", Fase 1"');
   const columnas = [
     { etiqueta: "Código", clave: "codigo" },
@@ -208,9 +212,20 @@ test("Módulo 04: generarCsvReporte exporta todas las páginas con BOM UTF-8 y e
   ];
   const csv = generarCsvReporte(columnas, filas);
   assert.ok(csv.startsWith("\uFEFF"));
-  assert.ok(csv.includes("Código,Nombre,Meta\r\n"));
-  assert.ok(csv.includes('P00001,"Roberto, Gómez",600 h'));
-  assert.ok(csv.includes("P00008,Ana Planta,No aplica (Planta)"));
+  assert.ok(csv.includes("Código;Nombre;Meta\r\n"));
+  assert.ok(csv.includes('P00001;"Roberto, Gómez";600 h'));
+  assert.ok(csv.includes("P00008;Ana Planta;No aplica (Planta)"));
+
+  const xls = generarExcelTablaReporte({
+    titulo: "Reporte Prueba",
+    filtros: { periodo: "2026-10-01 al 2026-10-20" },
+    columnas,
+    filas
+  });
+  assert.ok(xls.startsWith("\uFEFF<html"));
+  assert.ok(xls.includes("Reporte Prueba"));
+  assert.ok(xls.includes("P00001"));
+  assert.ok(xls.includes("No aplica (Planta)"));
 });
 
 test("Módulo 04: operaciones de reportes envían los mismos filtros normalizados a POST /api/backend", async () => {

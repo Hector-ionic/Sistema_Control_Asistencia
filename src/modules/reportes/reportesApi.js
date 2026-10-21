@@ -288,7 +288,7 @@ export function paginarResultados(lista = [], pagina = 1, porPagina = 15) {
 }
 
 /**
- * Escapa un valor para CSV seguro (compatible con Excel y hojas de cálculo).
+ * Escapa un valor para CSV seguro (compatible con Excel en español y hojas de cálculo).
  */
 export function escaparCeldaCsv(valor) {
   if (valor === null || valor === undefined) return "";
@@ -300,10 +300,25 @@ export function escaparCeldaCsv(valor) {
 }
 
 /**
- * Genera contenido CSV (con BOM UTF-8) a partir de columnas y filas.
+ * Formatea una hora de C# (ej. "10:40:49.4735890" o "08:00:00") a HH:MM:SS limpio.
  */
-export function generarCsvReporte(columnas = [], filas = []) {
-  const cabecera = columnas.map((c) => escaparCeldaCsv(c.etiqueta)).join(",");
+export function formatearHoraLimpia(hora) {
+  if (!hora) return "";
+  const limpio = String(hora).trim();
+  const coincidencia = limpio.match(/^(\d{2}:\d{2}(?::\d{2})?)/);
+  return coincidencia ? coincidencia[1] : limpio;
+}
+
+/**
+ * Genera contenido CSV (con BOM UTF-8) a partir de columnas y filas.
+ * Por defecto usa ";" para que Excel en Windows (Español/Bolivia) separe automáticamente
+ * cada dato en su propia columna (A, B, C, D...) al abrir el archivo con doble clic.
+ */
+export function generarCsvReporte(columnas = [], filas = [], opciones = {}) {
+  const separador = opciones.separador || ";";
+  const cabecera = columnas
+    .map((c) => escaparCeldaCsv(c.etiqueta))
+    .join(separador);
   const lineas = filas.map((fila) =>
     columnas
       .map((c) => {
@@ -311,9 +326,96 @@ export function generarCsvReporte(columnas = [], filas = []) {
           typeof c.obtener === "function" ? c.obtener(fila) : fila[c.clave];
         return escaparCeldaCsv(valor);
       })
-      .join(",")
+      .join(separador)
   );
   return `\uFEFF${[cabecera, ...lineas].join("\r\n")}`;
+}
+
+/**
+ * Escapa texto para insertar en celdas HTML de exportación Excel (.xls).
+ */
+function escaparHtmlExcel(valor) {
+  if (valor === null || valor === undefined) return "";
+  return String(valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Genera una hoja de cálculo con formato de tabla ordenada para Microsoft Excel (.xls),
+ * incluyendo encabezado institucional, resumen de filtros activos, bordes y columnas estilizadas.
+ */
+export function generarExcelTablaReporte({
+  titulo = "Reporte del Sistema",
+  filtros = {},
+  columnas = [],
+  filas = []
+} = {}) {
+  const totalCols = Math.max(1, columnas.length);
+  const cabecerasHtml = columnas
+    .map(
+      (c) =>
+        `<th style="background-color:#173c32;color:#ffffff;font-weight:bold;padding:8px 10px;border:1px solid #9ab09c;text-align:left;">${escaparHtmlExcel(
+          c.etiqueta
+        )}</th>`
+    )
+    .join("");
+
+  const filasHtml = filas
+    .map((fila, idx) => {
+      const bg = idx % 2 === 0 ? "#ffffff" : "#f4f7f2";
+      const celdas = columnas
+        .map((c) => {
+          const valor =
+            typeof c.obtener === "function" ? c.obtener(fila) : fila[c.clave];
+          const esNumero = typeof valor === "number";
+          const estiloTexto = esNumero
+            ? "mso-number-format:'0';text-align:right;"
+            : "mso-number-format:'\\@';text-align:left;";
+          return `<td style="background-color:${bg};padding:6px 10px;border:1px solid #d0dcd1;${estiloTexto}">${escaparHtmlExcel(
+            valor
+          )}</td>`;
+        })
+        .join("");
+      return `<tr>${celdas}</tr>`;
+    })
+    .join("");
+
+  return `\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #16241b; }
+  table { border-collapse: collapse; width: 100%; }
+</style>
+</head>
+<body>
+  <table>
+    <tr>
+      <td colspan="${totalCols}" style="font-size:14pt;font-weight:bold;background-color:#e9f1e6;color:#173c32;padding:10px;border:1px solid #9ab09c;">
+        SII · OFICINA SANTIAGO II — ${escaparHtmlExcel(titulo)}
+      </td>
+    </tr>
+    <tr>
+      <td colspan="${totalCols}" style="font-size:10pt;background-color:#f8faf6;color:#35523d;padding:6px 10px;border:1px solid #d0dcd1;">
+        <b>Período:</b> ${escaparHtmlExcel(filtros.periodo || "—")} &nbsp;|&nbsp;
+        <b>Personal:</b> ${escaparHtmlExcel(filtros.persona || "Todos")} &nbsp;|&nbsp;
+        <b>Proyecto:</b> ${escaparHtmlExcel(filtros.proyecto || "Todos")} &nbsp;|&nbsp;
+        <b>Total registros:</b> ${filas.length}
+      </td>
+    </tr>
+    <tr><td colspan="${totalCols}" style="height:8px;"></td></tr>
+    <thead>
+      <tr>${cabecerasHtml}</tr>
+    </thead>
+    <tbody>
+      ${filasHtml}
+    </tbody>
+  </table>
+</body>
+</html>`;
 }
 
 /**
