@@ -6,6 +6,7 @@ export default function ConfiguracionForm({
   configuracionActual,
   rolSesionActual = "SuperAdmin",
   onGuardar,
+  onCambioTemaOscuro,
   guardando = false
 }) {
   const [form, setForm] = useState({
@@ -48,6 +49,9 @@ export default function ConfiguracionForm({
       ...prev,
       [name]: type === "checkbox" ? checked : value
     }));
+    if (name === "temaOscuro" && typeof onCambioTemaOscuro === "function") {
+      onCambioTemaOscuro(checked);
+    }
     if (errores[name] || errores.permisos) {
       setErrores((prev) => ({ ...prev, [name]: undefined, permisos: undefined }));
     }

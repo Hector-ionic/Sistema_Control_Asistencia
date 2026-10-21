@@ -589,3 +589,95 @@
     box-shadow: none;
   }
 }
+
+
+/* Modo Oscuro (activado por configuracion.temaOscuro) */
+body.sii-tema-oscuro {
+  background-color: #0b1510 !important;
+  color: #e6f4ec !important;
+}
+
+body.sii-tema-oscuro main,
+body.sii-tema-oscuro .panel,
+body.sii-tema-oscuro .card {
+  background-color: #112119 !important;
+  color: #e6f4ec !important;
+  border-color: #264234 !important;
+}
+
+.acc-tema-oscuro .acc-encabezado {
+  border-bottom-color: #264234;
+}
+
+.acc-tema-oscuro h2,
+.acc-tema-oscuro h3,
+.acc-tema-oscuro h4,
+.acc-tema-oscuro .acc-card-titulo,
+.acc-tema-oscuro .acc-kpi-valor,
+.acc-tema-oscuro .acc-label,
+.acc-tema-oscuro .acc-contexto-item label {
+  color: #ecfdf5 !important;
+}
+
+.acc-tema-oscuro p,
+.acc-tema-oscuro .acc-ayuda,
+.acc-tema-oscuro .acc-kpi-etiqueta,
+.acc-tema-oscuro .acc-kpi-sub,
+.acc-tema-oscuro ul,
+.acc-tema-oscuro li {
+  color: #a7f3d0 !important;
+}
+
+.acc-tema-oscuro .acc-barra-contexto,
+.acc-tema-oscuro .acc-filtros-barra,
+.acc-tema-oscuro .acc-form-panel {
+  background: #15291f !important;
+  border-color: #2a4a3a !important;
+  color: #e6f4ec !important;
+}
+
+.acc-tema-oscuro .acc-kpi-card,
+.acc-tema-oscuro .acc-card,
+.acc-tema-oscuro .acc-tabla-contenedor {
+  background: #112219 !important;
+  border-color: #284637 !important;
+  color: #e6f4ec !important;
+}
+
+.acc-tema-oscuro .acc-input,
+.acc-tema-oscuro .acc-select,
+.acc-tema-oscuro .acc-textarea,
+.acc-tema-oscuro .acc-check-fila {
+  background: #0d1a13 !important;
+  border-color: #315744 !important;
+  color: #f0fdf4 !important;
+}
+
+.acc-tema-oscuro .acc-tab-btn {
+  background: #112219;
+  border-color: #2d4f3e;
+  color: #d1fae5;
+}
+
+.acc-tema-oscuro .acc-tab-btn[aria-selected="true"] {
+  background: #059669;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.acc-tema-oscuro .acc-btn-secundario {
+  background: #183024;
+  border-color: #345c48;
+  color: #ecfdf5;
+}
+
+.acc-tema-oscuro .acc-tabla th {
+  background: #183024;
+  color: #ecfdf5;
+  border-bottom-color: #2b4c3b;
+}
+
+.acc-tema-oscuro .acc-tabla td {
+  border-bottom-color: #213b2e;
+  color: #e6f4ec;
+}

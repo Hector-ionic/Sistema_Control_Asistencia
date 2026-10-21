@@ -53,6 +53,18 @@ export default function Acceso({ modulo }) {
   // Colecciones del Módulo 01
   const [usuarios, setUsuarios] = useState([]);
   const [configuracion, setConfiguracion] = useState(null);
+  const temaOscuroActivo = Boolean(configuracion?.temaOscuro);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.classList.toggle("sii-tema-oscuro", temaOscuroActivo);
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("sii-tema-oscuro");
+      }
+    };
+  }, [temaOscuroActivo]);
   const [departamentos, setDepartamentos] = useState([]);
   const [marcas, setMarcas] = useState([]);
   const [auditoria, setAuditoria] = useState([]);
@@ -468,7 +480,7 @@ export default function Acceso({ modulo }) {
   };
 
   return (
-    <div className="acc-contenedor">
+    <div className={`acc-contenedor ${temaOscuroActivo ? "acc-tema-oscuro" : ""}`}>
       {/* Encabezado del Módulo 01 */}
       <div className="acc-encabezado">
         <div className="acc-titulo-fila">
@@ -1289,6 +1301,9 @@ export default function Acceso({ modulo }) {
                 configuracionActual={configuracion}
                 rolSesionActual={rolActual}
                 onGuardar={handleGuardarConfiguracion}
+                onCambioTemaOscuro={(activo) =>
+                  setConfiguracion((prev) => (prev ? { ...prev, temaOscuro: activo } : { id: 1, temaOscuro: activo }))
+                }
                 guardando={procesando}
               />
 
