@@ -534,7 +534,7 @@ export default function Acceso({ modulo }) {
             }}
           >
             <option value="backend">
-              Servidor real (/api/backend · API C# + Base de datos)
+              Servidor real
             </option>
             <option value="memoria">
               Modo de prueba en memoria
