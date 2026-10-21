@@ -887,21 +887,10 @@ export default function Acceso({ modulo }) {
               type="button"
               role="tab"
               className="acc-tab-btn"
-              aria-selected={pestanaActiva === "roles"}
-              onClick={() => setPestanaActiva("roles")}
-            >
-              <span>2. Roles y Permisos</span>
-              <span className="acc-tab-contador">{ROLES_VALIDOS.length}</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              className="acc-tab-btn"
               aria-selected={pestanaActiva === "configuracion"}
               onClick={() => setPestanaActiva("configuracion")}
             >
-              <span>3. Áreas, Marcas y Horarios</span>
+              <span>2. Áreas, Marcas y Horarios</span>
               <span className="acc-tab-contador">{departamentos.length}</span>
             </button>
 
@@ -912,7 +901,7 @@ export default function Acceso({ modulo }) {
               aria-selected={pestanaActiva === "auditoria"}
               onClick={() => setPestanaActiva("auditoria")}
             >
-              <span>4. Auditoría de Cambios</span>
+              <span>3. Auditoría de Cambios</span>
               <span className="acc-tab-contador">{auditoria.length}</span>
             </button>
           </div>
@@ -1190,108 +1179,7 @@ export default function Acceso({ modulo }) {
             </section>
           )}
 
-          {/* PESTAÑA 2: ROLES Y PERMISOS */}
-          {pestanaActiva === "roles" && (
-            <section className="acc-seccion" aria-label="Roles y permisos de administrador y operador">
-              <div className="acc-seccion-cabecera">
-                <div>
-                  <h3 style={{ margin: 0 }}>
-                    Roles y Permisos de Administrador y Operador
-                  </h3>
-                  <p className="acc-ayuda" style={{ margin: "4px 0 0 0" }}>
-                    La autoridad es la sesión validada en el servidor. No se confía en cabeceras ni roles enviados por el navegador.
-                  </p>
-                </div>
-              </div>
-
-              <div className="acc-grid-tarjetas">
-                {DESCRIPCION_ROLES.map((item) => {
-                  const esRolActual = item.rol === rolActual;
-                  return (
-                    <article key={item.rol} className="acc-card">
-                      <div className="acc-card-top">
-                        <div>
-                          <span className={badgeRol(item.rol)}>{item.rol}</span>
-                          <h4 className="acc-card-titulo" style={{ marginTop: "6px" }}>
-                            {item.titulo}
-                          </h4>
-                        </div>
-                        {esRolActual && (
-                          <span className="acc-badge acc-badge-activo">
-                            Tu rol actual
-                          </span>
-                        )}
-                      </div>
-
-                      <p style={{ margin: 0, fontSize: "0.9rem", color: "#394d42" }}>
-                        {item.resumen}
-                      </p>
-
-                      <div>
-                        <span
-                          className="acc-ayuda"
-                          style={{ display: "block", marginBottom: "6px", fontWeight: 700 }}
-                        >
-                          Operaciones autorizadas en backend:
-                        </span>
-                        <div className="acc-chips-permisos">
-                          {item.operacionesPermitidas.map((op) => (
-                            <span key={op} className="acc-badge acc-badge-neutral">
-                              {op}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-
-              <div className="acc-form-panel">
-                <h4 style={{ margin: "0 0 6px 0" }}>
-                  Verificación de seguridad en Backend (Rechazo de acciones prohibidas y sesión vencida)
-                </h4>
-                <p className="acc-ayuda" style={{ margin: "0 0 12px 0" }}>
-                  Compruebe en vivo los criterios funcionales del Módulo 01: las acciones no autorizadas para el rol actual se rechazan en el backend (403) y una sesión vencida redirige automáticamente al inicio de sesión (401).
-                </p>
-                <div className="acc-acciones-fila">
-                  {!esSuperAdmin && (
-                    <button
-                      type="button"
-                      className="acc-btn acc-btn-secundario"
-                      disabled={procesando}
-                      onClick={async () => {
-                        setProcesando(true);
-                        try {
-                          await ejecutarOperacionModulo01(
-                            "configuracion.guardar",
-                            configuracion || {},
-                            { usarContratoMemoria, modoRed }
-                          );
-                        } catch (error) {
-                          await manejarErrorOperacion(error);
-                        } finally {
-                          setProcesando(false);
-                        }
-                      }}
-                    >
-                      Probar guardar configuración sin ser SuperAdmin (Rechazo 403)
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="acc-btn acc-btn-secundario"
-                    onClick={handleSimularVencimientoSesion}
-                    disabled={procesando}
-                  >
-                    Simular sesión vencida y volver al acceso (401)
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* PESTAÑA 3: ÁREAS, MARCAS Y HORARIOS PREDETERMINADOS */}
+          {/* PESTAÑA 2: ÁREAS, MARCAS Y HORARIOS PREDETERMINADOS */}
           {pestanaActiva === "configuracion" && (
             <section
               className="acc-seccion"
@@ -1444,7 +1332,7 @@ export default function Acceso({ modulo }) {
             </section>
           )}
 
-          {/* PESTAÑA 4: AUDITORÍA DE CAMBIOS Y ACCIONES ADMINISTRATIVAS */}
+          {/* PESTAÑA 3: AUDITORÍA DE CAMBIOS Y ACCIONES ADMINISTRATIVAS */}
           {pestanaActiva === "auditoria" && (
             <section
               className="acc-seccion"
