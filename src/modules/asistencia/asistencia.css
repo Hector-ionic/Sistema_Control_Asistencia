@@ -1,0 +1,450 @@
+/* Estilos responsivos del Módulo 03: Asistencia e incidencias */
+
+.mod-asistencia {
+  display: grid;
+  gap: 18px;
+}
+
+.mod-asist-cabecera-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mod-asist-acciones-top {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mod-asist-indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.caja-indicador-asist {
+  border: 1px solid #d5ded0;
+  border-radius: 12px;
+  background: #f8faf6;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.caja-indicador-asist.destacada {
+  background: #eef4ec;
+  border-color: #b7cbb0;
+}
+
+.caja-indicador-asist .valor-grande {
+  font-size: 24px;
+  font-weight: 800;
+  color: #163029;
+  line-height: 1.15;
+}
+
+.subtexto-asist {
+  font-size: 12px;
+  color: #5b6d59;
+}
+
+.pestanas-asistencia,
+.subpestanas-asistencia {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #d5ded0;
+}
+
+.btn-asist {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #b7c8b2;
+  background: #ffffff;
+  color: #173c32;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-asist:hover:not(:disabled) {
+  background: #eef4ec;
+}
+
+.btn-asist:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-asist-primario,
+.btn-asist-activo {
+  background: #173c32;
+  border-color: #173c32;
+  color: #ffffff;
+}
+
+.btn-asist-primario:hover:not(:disabled),
+.btn-asist-activo:hover:not(:disabled) {
+  background: #102b24;
+}
+
+.btn-asist-peligro {
+  background: #fff5f5;
+  border-color: #e2b4b4;
+  color: #8a1f1f;
+}
+
+.btn-asist-peligro:hover:not(:disabled) {
+  background: #fde8e8;
+}
+
+.grid-jornada-vivo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tarjeta-asist {
+  border: 1px solid #d5ded0;
+  border-radius: 12px;
+  background: #fbfcfa;
+  padding: 18px;
+}
+
+.campo-asist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.campo-asist label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #163029;
+}
+
+.input-asist,
+.select-asist {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #b7c8b2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #16241b;
+  font-size: 13px;
+}
+
+.input-asist.input-error-borde {
+  border-color: #c93b3b;
+  background: #fff8f8;
+}
+
+.opciones-marcacion-fila {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.check-asist {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: #163029;
+  cursor: pointer;
+}
+
+.botones-secuencia-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.resumen-estado-persona {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dato-estado-item {
+  border: 1px solid #d5ded0;
+  border-radius: 10px;
+  background: #f4f7f2;
+  padding: 10px 12px;
+}
+
+.dato-estado-item small {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #5b6d59;
+  margin-bottom: 3px;
+}
+
+.dato-estado-item strong {
+  font-size: 14px;
+  color: #16241b;
+}
+
+.ficha-resumen-incidencia {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid #c5d4c0;
+  background: #f2f7f0;
+  font-size: 13px;
+}
+
+.ficha-resumen-incidencia.alerta-horario {
+  border-color: #e2b4b4;
+  background: #fdf2f2;
+  color: #7a1c1c;
+}
+
+.chips-motivos-rapidos {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.chip-motivo-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #c5d4c0;
+  background: #ffffff;
+  color: #173c32;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip-motivo-btn:hover,
+.chip-motivo-btn.activo {
+  background: #173c32;
+  border-color: #173c32;
+  color: #ffffff;
+}
+
+.detalle-horario-propuesto {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #2c4237;
+  background: #f4f7f2;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 6px 0;
+}
+
+.lista-scroll-incidencias {
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.grid-form-manual {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cabecera-tabla-hoy {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.contadores-hoy-barra {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filtros-tabla-hoy {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pastilla-estado {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #c5d4c0;
+  background: #eef4ec;
+  color: #173c32;
+}
+
+.pastilla-estado.almuerzo {
+  background: #fff6e0;
+  border-color: #e6c97a;
+  color: #6e4f06;
+}
+
+.pastilla-estado.finalizada {
+  background: #e6f2ff;
+  border-color: #a8ccf0;
+  color: #144272;
+}
+
+.pastilla-estado.sin-registro {
+  background: #fdecec;
+  border-color: #e5b3b3;
+  color: #7a1c1c;
+}
+
+.tabla-contenedor-asist {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #d5ded0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.tabla-asistencia {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+  font-size: 13px;
+}
+
+.tabla-asistencia th,
+.tabla-asistencia td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e6ece2;
+  vertical-align: middle;
+}
+
+.tabla-asistencia thead th {
+  background: #e8efe4;
+  color: #173c32;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.tabla-asistencia tr.fila-seleccionada {
+  background: #eef6eb;
+}
+
+.caja-reintento-uuid {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #c5d4c0;
+  background: #eef4ec;
+  color: #173c32;
+}
+
+.lista-tarjetas-revision {
+  display: grid;
+  gap: 10px;
+}
+
+.item-revision-asist {
+  border: 1px solid #d5ded0;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.item-revision-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.acciones-revision-inline {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.aviso-asistencia {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #b7cbb0;
+  background: #eef4ec;
+  color: #173c32;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.aviso-asistencia.alerta {
+  border-color: #e2b4b4;
+  background: #fdf2f2;
+  color: #7a1c1c;
+}
+
+/* Responsividad móvil obligatoria (900px, 700px, 360px, 320px) */
+@media (max-width: 900px) {
+  .mod-asist-indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-jornada-vivo {
+    grid-template-columns: 1fr;
+  }
+  .grid-form-manual {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .mod-asist-indicadores,
+  .grid-form-manual,
+  .filtros-tabla-hoy,
+  .resumen-estado-persona,
+  .botones-secuencia-grid {
+    grid-template-columns: 1fr;
+  }
+  .mod-asist-acciones-top {
+    width: 100%;
+  }
+  .mod-asist-acciones-top .btn-asist {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .tarjeta-asist {
+    padding: 12px;
+  }
+  .btn-asist {
+    width: 100%;
+  }
+}
