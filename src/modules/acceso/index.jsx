@@ -36,8 +36,8 @@ export default function Acceso({ modulo }) {
   // Modo del panel de acceso inicial: login ('ingreso') o autorregistro ('registro-encargado')
   const [modoFormularioAcceso, setModoFormularioAcceso] = useState("ingreso");
   const [credencialesLogin, setCredencialesLogin] = useState({
-    usuario: "superadmin",
-    password: "clave-de-prueba"
+    usuario: "",
+    password: ""
   });
   const [formRegistroEncargado, setFormRegistroEncargado] = useState({
     usuario: "",
@@ -86,7 +86,7 @@ export default function Acceso({ modulo }) {
         if (res.ok) {
           usarMem = false;
           setUsarContratoMemoria(false);
-          setEstadoBackend("Conectado al servidor (/api/backend)");
+          setEstadoBackend("Conectado al servidor");
         } else {
           setUsarContratoMemoria(true);
           setEstadoBackend("Modo de prueba en memoria activo");
@@ -517,7 +517,7 @@ export default function Acceso({ modulo }) {
               setEstadoBackend(
                 usarMem
                   ? "Modo de prueba en memoria activo"
-                  : "Conectado al servidor (/api/backend)"
+                  : "Conectado al servidor"
               );
             }}
           >
@@ -525,7 +525,7 @@ export default function Acceso({ modulo }) {
               Servidor real (/api/backend · API C# + Base de datos)
             </option>
             <option value="memoria">
-              Modo de prueba en memoria (sin servidor de escritorio)
+              Modo de prueba en memoria
             </option>
           </select>
         </div>
@@ -1493,7 +1493,7 @@ export default function Acceso({ modulo }) {
                         id="filtro-auditoria"
                         type="search"
                         className="acc-input"
-                        placeholder="Ej. usuarios.guardar, configuracion.guardar, carlos.apaza..."
+                        placeholder="Buscar por nombre de usuario, acci?n o detalle..."
                         value={busquedaAuditoria}
                         onChange={(e) => setBusquedaAuditoria(e.target.value)}
                       />

@@ -19,18 +19,10 @@ export const DESCRIPCION_ROLES = [
     resumen:
       "Control total del sistema: designa administradores, elimina cuentas, modifica la configuración institucional de horarios y consulta la auditoría completa.",
     operacionesPermitidas: [
-      "sesion",
-      "sesion.actual",
-      "usuarios.listar",
-      "usuarios.guardar (SuperAdmin, Admin, Encargado)",
-      "usuarios.eliminar",
-      "configuracion.obtener",
-      "configuracion.guardar",
-      "departamentos.listar",
-      "departamentos.guardar",
-      "departamentos.eliminar",
-      "marcas.listar",
-      "auditoria.listar"
+      "Inicio y cierre de sesi?n",
+      "Autorregistro de cuenta de encargado",
+      "Consulta de horarios predeterminados",
+      "Consulta de ?reas y marcas"
     ]
   },
   {
