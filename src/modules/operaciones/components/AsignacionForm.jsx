@@ -104,7 +104,7 @@ export default function AsignacionForm({
         <div className="op-form-grid">
           <div className="op-campo">
             <label className="op-label" htmlFor="asig-proyecto">
-              Proyecto *
+              Proyecto
             </label>
             <select
               id="asig-proyecto"
@@ -128,7 +128,7 @@ export default function AsignacionForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="asig-pasante">
-              Personal *
+              Personal
             </label>
             <select
               id="asig-pasante"
@@ -152,7 +152,7 @@ export default function AsignacionForm({
 
           <div className="op-campo op-campo-completo">
             <label className="op-label" htmlFor="asig-rol">
-              Rol / Función en el proyecto *
+              Rol / Función en el proyecto
             </label>
             <input
               id="asig-rol"
@@ -169,7 +169,7 @@ export default function AsignacionForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="asig-fecha-inicio">
-              Fecha de inicio *
+              Fecha de inicio
             </label>
             <input
               id="asig-fecha-inicio"

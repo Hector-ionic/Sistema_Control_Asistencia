@@ -72,7 +72,7 @@ export default function ProyectoForm({
         <div className="op-form-grid">
           <div className="op-campo">
             <label className="op-label" htmlFor="pry-codigo">
-              Código del proyecto *
+              Código del proyecto
             </label>
             <input
               id="pry-codigo"
@@ -89,7 +89,7 @@ export default function ProyectoForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="pry-nombre">
-              Nombre del proyecto *
+              Nombre del proyecto
             </label>
             <input
               id="pry-nombre"
@@ -121,7 +121,7 @@ export default function ProyectoForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="pry-ubicacion">
-              Ubicación / Área *
+              Ubicación / Área
             </label>
             <input
               id="pry-ubicacion"
@@ -138,7 +138,7 @@ export default function ProyectoForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="pry-fecha-inicio">
-              Fecha de inicio *
+              Fecha de inicio
             </label>
             <input
               id="pry-fecha-inicio"
@@ -170,7 +170,7 @@ export default function ProyectoForm({
 
           <div className="op-campo op-campo-completo">
             <label className="op-label" htmlFor="pry-estado">
-              Estado del proyecto *
+              Estado del proyecto
             </label>
             <select
               id="pry-estado"
@@ -191,7 +191,7 @@ export default function ProyectoForm({
 
           <div className="op-campo op-campo-completo">
             <label className="op-label" htmlFor="pry-descripcion">
-              Descripción y alcance *
+              Descripción y alcance
             </label>
             <textarea
               id="pry-descripcion"

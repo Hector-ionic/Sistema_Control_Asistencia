@@ -68,7 +68,7 @@ export default function ViaticoForm({
         <div className="op-form-grid">
           <div className="op-campo">
             <label className="op-label" htmlFor="via-pasante">
-              Persona beneficiaria *
+              Persona beneficiaria
             </label>
             <select
               id="via-pasante"
@@ -92,7 +92,7 @@ export default function ViaticoForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="via-fecha">
-              Fecha del viático *
+              Fecha del viático
             </label>
             <input
               id="via-fecha"
@@ -108,7 +108,7 @@ export default function ViaticoForm({
 
           <div className="op-campo">
             <label className="op-label" htmlFor="via-monto">
-              Monto base ({reglas.moneda}) * — Máx. {reglas.moneda}{" "}
+              Monto base ({reglas.moneda}) — Máx. {reglas.moneda}{" "}
               {reglas.montoBaseMaximo.toFixed(2)}
             </label>
             <input
@@ -150,7 +150,7 @@ export default function ViaticoForm({
 
           <div className="op-campo op-campo-completo">
             <label className="op-label" htmlFor="via-concepto">
-              Concepto del gasto *
+              Concepto del gasto
             </label>
             <input
               id="via-concepto"

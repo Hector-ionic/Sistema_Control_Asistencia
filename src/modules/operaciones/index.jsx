@@ -551,7 +551,7 @@ export default function Operaciones({ modulo }) {
             <div className="op-form-grid">
               <div className="op-campo">
                 <label className="op-label" htmlFor="login-usuario">
-                  Usuario *
+                  Usuario
                 </label>
                 <input
                   id="login-usuario"
@@ -570,7 +570,7 @@ export default function Operaciones({ modulo }) {
 
               <div className="op-campo">
                 <label className="op-label" htmlFor="login-password">
-                  Contraseña *
+                  Contraseña
                 </label>
                 <input
                   id="login-password"
@@ -1214,18 +1214,6 @@ export default function Operaciones({ modulo }) {
           )}
         </>
       )}
-
-      {/* Criterio de aceptación oficial */}
-      <div className="aceptacion" style={{ marginTop: "28px" }}>
-        <strong>Criterio de aceptación (Módulo 05)</strong>
-        <p>
-          {modulo?.aceptacion ||
-            "Las asignaciones respetan las fechas del proyecto, los viáticos cumplen sus reglas y los totales coinciden con los reportes."}
-        </p>
-      </div>
-      <p className="ruta">
-        Código del módulo: src/modules/{modulo?.id || "operaciones"}/
-      </p>
     </section>
   );
 }
