@@ -189,9 +189,12 @@ export default function App() {
       setResumenHoy(Array.isArray(resAsist) ? resAsist : []);
       setProyectosLista(Array.isArray(resProy) ? resProy : []);
 
-      if (listaP.length > 0 && !codigoSeleccionado) {
-        setCodigoSeleccionado(listaP[0].codigo);
-      }
+      setCodigoSeleccionado((prev) => {
+        if (prev && listaP.some((p) => p.codigo === prev)) {
+          return prev;
+        }
+        return listaP.length > 0 ? listaP[0].codigo : "";
+      });
     } catch {
       // Ignorar fallos de red puntuales
     } finally {
@@ -334,45 +337,9 @@ export default function App() {
               className="dash-btn-login"
               disabled={loginCargando}
             >
-              {loginCargando ? "Iniciando sesión…" : "Ingresar al Dashboard"}
+              {loginCargando ? "Iniciando sesión…" : "Ingresar"}
             </button>
           </form>
-
-          <div className="dash-login-presets">
-            <small>Cuentas registradas en el sistema:</small>
-            <div className="dash-presets-btns">
-              <button
-                type="button"
-                className="dash-preset-chip"
-                onClick={() =>
-                  setLoginForm((p) => ({ ...p, usuario: "carlos.apaza" }))
-                }
-              >
-                carlos.apaza (SuperAdmin)
-              </button>
-              <button
-                type="button"
-                className="dash-preset-chip"
-                onClick={() =>
-                  setLoginForm((p) => ({
-                    ...p,
-                    usuario: "gabriel.garcia.admin"
-                  }))
-                }
-              >
-                gabriel.garcia.admin (SuperAdmin)
-              </button>
-              <button
-                type="button"
-                className="dash-preset-chip"
-                onClick={() =>
-                  setLoginForm((p) => ({ ...p, usuario: "camila" }))
-                }
-              >
-                camila (Admin)
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     );

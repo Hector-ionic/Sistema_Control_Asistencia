@@ -489,8 +489,8 @@ export default function PanelJornada({
                 : "Seleccione una persona"}
             </h3>
 
-            {cargandoEstado ? (
-              <p>Consultando estado en servidor C#…</p>
+            {!codigoSeleccionado ? (
+              <p>Seleccione una persona para ver su estado de jornada.</p>
             ) : (
               <div className="resumen-estado-persona">
                 <div className="dato-estado-item">
