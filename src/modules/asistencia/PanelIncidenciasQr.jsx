@@ -331,7 +331,19 @@ export default function PanelIncidenciasQr({
   // 3. INTEGRACIÓN QR Y REVISIÓN DE SOLICITUDES (qr.existe, qr.emitir, qr.pendientes, qr.solicitudes, qr.revisar)
   // ============================================================================
   const [credencialEmitida, setCredencialEmitida] = useState(null);
-  const [basePortalQr, setBasePortalQr] = useState("http://localhost:5088");
+  const [basePortalQr, setBasePortalQr] = useState(() => {
+    try {
+      const guardada = localStorage.getItem("portal_qr_base_url");
+      if (guardada && guardada.trim()) return guardada.trim();
+      const host = typeof window !== "undefined" ? window.location?.hostname : "";
+      if (host && host !== "localhost" && host !== "127.0.0.1") {
+        return `http://${host}:5087`;
+      }
+    } catch {
+      // Fallback
+    }
+    return "http://192.168.0.4:5087";
+  });
   const [mensajeErrorQrPorId, setMensajeErrorQrPorId] = useState({});
   const [estadoQrServidor, setEstadoQrServidor] = useState({
     existe: qrExiste,
@@ -1615,7 +1627,17 @@ export default function PanelIncidenciasQr({
                       className="input-asist"
                       type="text"
                       value={basePortalQr}
-                      onChange={(e) => setBasePortalQr(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setBasePortalQr(val);
+                        try {
+                          if (val && val.trim()) {
+                            localStorage.setItem("portal_qr_base_url", val.trim());
+                          }
+                        } catch {
+                          // Fallback
+                        }
+                      }}
                       placeholder="Ej. http://localhost:5088 o http://192.168.44.1:5087"
                     />
                   </div>
