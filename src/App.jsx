@@ -402,7 +402,6 @@ export default function App() {
             className={`dash-nav-btn ${vistaActiva === "general" ? "activo" : ""}`}
             onClick={() => setVistaActiva("general")}
           >
-            <span className="icon">📊</span>
             <span>Asistencia de hoy</span>
             <span className="badge">{kpisHoy.total}</span>
           </button>
@@ -416,8 +415,7 @@ export default function App() {
             className={`dash-nav-btn ${vistaActiva === "personal" ? "activo" : ""}`}
             onClick={() => setVistaActiva("personal")}
           >
-            <span className="icon">👥</span>
-            <span>Personal (M02)</span>
+            <span>Personal</span>
           </button>
 
           <button
@@ -425,8 +423,7 @@ export default function App() {
             className={`dash-nav-btn ${vistaActiva === "asistencia" ? "activo" : ""}`}
             onClick={() => setVistaActiva("asistencia")}
           >
-            <span className="icon">🕒</span>
-            <span>Asistencia (M03)</span>
+            <span>Asistencia</span>
           </button>
 
           <button
@@ -434,8 +431,7 @@ export default function App() {
             className={`dash-nav-btn ${vistaActiva === "reportes" ? "activo" : ""}`}
             onClick={() => setVistaActiva("reportes")}
           >
-            <span className="icon">📈</span>
-            <span>Reportes (M04)</span>
+            <span>Reportes</span>
           </button>
 
           <button
@@ -443,8 +439,7 @@ export default function App() {
             className={`dash-nav-btn ${vistaActiva === "operaciones" ? "activo" : ""}`}
             onClick={() => setVistaActiva("operaciones")}
           >
-            <span className="icon">📁</span>
-            <span>Proyectos y Viáticos (M05)</span>
+            <span>Proyectos y Viáticos</span>
           </button>
 
           <button
@@ -452,8 +447,7 @@ export default function App() {
             className={`dash-nav-btn ${vistaActiva === "acceso" ? "activo" : ""}`}
             onClick={() => setVistaActiva("acceso")}
           >
-            <span className="icon">⚙️</span>
-            <span>Acceso y Config (M01)</span>
+            <span>Acceso y Configuración</span>
           </button>
         </nav>
 
