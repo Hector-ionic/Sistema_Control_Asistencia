@@ -18,7 +18,7 @@ import UsuarioForm from "./components/UsuarioForm.jsx";
 import ConfiguracionForm from "./components/ConfiguracionForm.jsx";
 import DepartamentoForm from "./components/DepartamentoForm.jsx";
 
-export default function Acceso({ modulo }) {
+export default function Acceso({ modulo, token: tokenExterno = "", usuario: usuarioExterno = null }) {
   const [pestanaActiva, setPestanaActiva] = useState("cuentas");
 
   // Modo de conexión (/api/backend real vs simulador de contrato en memoria)
@@ -29,8 +29,12 @@ export default function Acceso({ modulo }) {
   );
 
   // Sesión exclusivamente en memoria (sin localStorage ni x-rol-usuario)
-  const [tokenSesion, setTokenSesion] = useState(() => obtenerTokenAccesoMemoria());
-  const [usuarioActual, setUsuarioActual] = useState(() => obtenerSesionAccesoMemoria());
+  const [tokenSesion, setTokenSesion] = useState(() => tokenExterno || obtenerTokenAccesoMemoria());
+  const [usuarioActual, setUsuarioActual] = useState(() => usuarioExterno || obtenerSesionAccesoMemoria());
+  useEffect(() => {
+    if (tokenExterno) setTokenSesion(tokenExterno);
+    if (usuarioExterno) setUsuarioActual(usuarioExterno);
+  }, [tokenExterno, usuarioExterno]);
   const [expiracionMs, setExpiracionMs] = useState(() => obtenerExpiracionSesionMemoria());
 
   // Modo del panel de acceso inicial: login ('ingreso') o autorregistro ('registro-encargado')

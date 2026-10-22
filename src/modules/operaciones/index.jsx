@@ -21,7 +21,7 @@ import AsignacionForm from "./components/AsignacionForm.jsx";
 import ViaticoForm from "./components/ViaticoForm.jsx";
 import TotalesReportesPanel from "./components/TotalesReportesPanel.jsx";
 
-export default function Operaciones({ modulo }) {
+export default function Operaciones({ modulo, token: tokenExterno = "", usuario: usuarioExterno = null }) {
   const [pestanaActiva, setPestanaActiva] = useState("proyectos");
 
   // Estado de conexión y modo de contrato (/api/backend real vs simulador de contrato en memoria)
@@ -32,8 +32,12 @@ export default function Operaciones({ modulo }) {
   );
 
   // Sesión exclusivamente en memoria (sin localStorage ni x-rol-usuario)
-  const [tokenSesion, setTokenSesion] = useState(() => obtenerTokenMemoria());
-  const [usuarioActual, setUsuarioActual] = useState(() => obtenerSesionMemoria());
+  const [tokenSesion, setTokenSesion] = useState(() => tokenExterno || obtenerTokenMemoria());
+  const [usuarioActual, setUsuarioActual] = useState(() => usuarioExterno || obtenerSesionMemoria());
+  useEffect(() => {
+    if (tokenExterno) setTokenSesion(tokenExterno);
+    if (usuarioExterno) setUsuarioActual(usuarioExterno);
+  }, [tokenExterno, usuarioExterno]);
   const [credencialesLogin, setCredencialesLogin] = useState({
     usuario: "",
     password: ""
