@@ -5,6 +5,8 @@ import Personal from "./modules/personal/index.jsx";
 import Asistencia from "./modules/asistencia/index.jsx";
 import Reportes from "./modules/reportes/index.jsx";
 import Operaciones from "./modules/operaciones/index.jsx";
+import { establecerSesionAccesoMemoria } from "./modules/acceso/services/accesoService.js";
+import { establecerTokenMemoria } from "./modules/operaciones/services/operacionesService.js";
 import "./dashboard.css";
 
 const pantallas = {

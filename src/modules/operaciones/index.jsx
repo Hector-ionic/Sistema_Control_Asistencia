@@ -34,10 +34,7 @@ export default function Operaciones({ modulo, token: tokenExterno = "", usuario:
   // Sesión exclusivamente en memoria (sin localStorage ni x-rol-usuario)
   const [tokenSesion, setTokenSesion] = useState(() => tokenExterno || obtenerTokenMemoria());
   const [usuarioActual, setUsuarioActual] = useState(() => usuarioExterno || obtenerSesionMemoria());
-  useEffect(() => {
-    if (tokenExterno) setTokenSesion(tokenExterno);
-    if (usuarioExterno) setUsuarioActual(usuarioExterno);
-  }, [tokenExterno, usuarioExterno]);
+
   const [credencialesLogin, setCredencialesLogin] = useState({
     usuario: "",
     password: ""
@@ -129,6 +126,18 @@ export default function Operaciones({ modulo, token: tokenExterno = "", usuario:
       setCargando(false);
     }
   };
+
+  useEffect(() => {
+    const t = tokenExterno || obtenerTokenMemoria();
+    if (t) {
+      setTokenSesion(t);
+      establecerTokenMemoria(t, usuarioExterno || usuarioActual);
+      recargarColecciones(false, "normal");
+    }
+    if (usuarioExterno) {
+      setUsuarioActual(usuarioExterno);
+    }
+  }, [tokenExterno, usuarioExterno]);
 
   // --- Inicio y cierre de sesión en memoria ---
   const handleIniciarSesion = async (e) => {
