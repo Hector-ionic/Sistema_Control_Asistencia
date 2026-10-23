@@ -837,85 +837,85 @@ body[data-theme="dark"] {
   --dash-border: #334155;
   --dash-text-main: #f8fafc;
   --dash-text-muted: #94a3b8;
+  --dash-primary: #3b82f6;
+  --dash-primary-hover: #2563eb;
+  --dash-success-bg: #064e3b;
+  --dash-success: #6ee7b7;
+  --dash-warning-bg: #78350f;
+  --dash-warning: #fde047;
+  --dash-danger-bg: #7f1d1d;
+  --dash-danger: #fca5a5;
   background-color: #0b1329 !important;
   color: #f8fafc !important;
 }
 
-body[data-theme="dark"] .dash-topbar {
-  background: #111e38;
-  border-bottom-color: #334155;
-}
-
-body[data-theme="dark"] .dash-greeting h1 {
-  color: #f8fafc;
-}
-
-body[data-theme="dark"] .dash-clock {
-  background: #1e293b;
-  border-color: #334155;
-  color: #38bdf8;
-}
-
-body[data-theme="dark"] .dash-kpi-card {
-  background: #1e293b;
-  border-color: #334155;
-}
-
-body[data-theme="dark"] .dash-panel-izq,
-body[data-theme="dark"] .dash-panel-der,
-body[data-theme="dark"] .dash-ficha-persona,
-body[data-theme="dark"] .dash-horario-box {
-  background: #1e293b;
-  border-color: #334155;
-  color: #f8fafc;
-}
-
-body[data-theme="dark"] .dash-tabla th {
-  background: #182234;
-  color: #f8fafc;
-  border-bottom-color: #334155;
-}
-
-body[data-theme="dark"] .dash-tabla td {
-  border-bottom-color: #273549;
-  color: #e2e8f0;
-}
-
-body[data-theme="dark"] .dash-tabla tr:hover td {
-  background: #273549;
-}
-
-body[data-theme="dark"] .dash-select-persona,
-body[data-theme="dark"] .dash-input-busqueda,
-body[data-theme="dark"] .dash-select-filtro {
-  background: #0f172a !important;
-  border-color: #334155 !important;
+/* 1. Contenedores Globales y Vistas */
+body[data-theme="dark"] #root,
+body[data-theme="dark"] .dash-layout,
+body[data-theme="dark"] .dash-main-body,
+body[data-theme="dark"] .dash-content-area,
+body[data-theme="dark"] .dash-vista-general,
+body[data-theme="dark"] .mod-personal,
+body[data-theme="dark"] .mod-asistencia,
+body[data-theme="dark"] .mod-reportes,
+body[data-theme="dark"] .op-contenedor,
+body[data-theme="dark"] .acc-contenedor,
+body[data-theme="dark"] main,
+body[data-theme="dark"] section {
+  background-color: #0b1329 !important;
   color: #f8fafc !important;
 }
 
-body[data-theme="dark"] .dash-btn-accion-tabla {
-  background: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
+/* 2. Topbar, Sidebar y Navegación */
+body[data-theme="dark"] .dash-topbar {
+  background: #111e38 !important;
+  border-bottom-color: #334155 !important;
 }
 
-body[data-theme="dark"] .dash-btn-accion-tabla:hover {
-  background: #334155;
-  color: #ffffff;
+body[data-theme="dark"] .dash-greeting h1 {
+  color: #f8fafc !important;
 }
 
-/* Reglas de integración con submódulos en modo oscuro */
+body[data-theme="dark"] .dash-clock {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #38bdf8 !important;
+}
+
+body[data-theme="dark"] .dash-sidebar {
+  background: #0b1329 !important;
+  border-right-color: #334155 !important;
+}
+
+body[data-theme="dark"] .dash-nav-item {
+  color: #94a3b8 !important;
+}
+
+body[data-theme="dark"] .dash-nav-item:hover {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] .dash-nav-item.activo {
+  background: #1e293b !important;
+  color: #38bdf8 !important;
+  border-left-color: #3b82f6 !important;
+}
+
+/* 3. Tarjetas, Paneles y Contenedores Modulares (Fondo #1e293b, Borde #334155) */
+body[data-theme="dark"] .detalle-modulo,
+body[data-theme="dark"] .tarjeta,
 body[data-theme="dark"] .card,
 body[data-theme="dark"] .panel,
+body[data-theme="dark"] .tarjeta-persona,
+body[data-theme="dark"] .tarjeta-asist,
 body[data-theme="dark"] .op-card,
 body[data-theme="dark"] .op-form-card,
+body[data-theme="dark"] .op-form-panel,
 body[data-theme="dark"] .op-tabla-card,
-body[data-theme="dark"] .op-kpi-card,
-body[data-theme="dark"] .op-filtros-barra,
 body[data-theme="dark"] .rep-card,
-body[data-theme="dark"] .rep-tabla-contenedor,
+body[data-theme="dark"] .rep-filtros-panel,
 body[data-theme="dark"] .pers-card,
-body[data-theme="dark"] .pers-tabla-contenedor,
 body[data-theme="dark"] .pers-form-card,
 body[data-theme="dark"] .panel-jornada,
 body[data-theme="dark"] .panel-incidencias,
@@ -923,31 +923,410 @@ body[data-theme="dark"] .panel-qr,
 body[data-theme="dark"] .tarjeta-solicitud-qr,
 body[data-theme="dark"] .seccion-jornada,
 body[data-theme="dark"] .bloque-formulario,
-body[data-theme="dark"] .contenedor-modulo {
+body[data-theme="dark"] .bloque-pasantia-nativo,
+body[data-theme="dark"] .bloque-planta-nativo,
+body[data-theme="dark"] .bloque-progreso-nativo,
+body[data-theme="dark"] .detalles-opcionales-personal,
+body[data-theme="dark"] .caja-inline-nativa,
+body[data-theme="dark"] .contenedor-modulo,
+body[data-theme="dark"] .resumen-estado-persona,
+body[data-theme="dark"] .acc-form-panel,
+body[data-theme="dark"] .acc-card,
+body[data-theme="dark"] .acc-tabla-card,
+body[data-theme="dark"] .acc-seccion,
+body[data-theme="dark"] .dash-panel-izq,
+body[data-theme="dark"] .dash-panel-der,
+body[data-theme="dark"] .dash-ficha-persona,
+body[data-theme="dark"] .credencial-tarjeta {
   background-color: #1e293b !important;
   border-color: #334155 !important;
   color: #f8fafc !important;
 }
 
-body[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
-body[data-theme="dark"] select,
-body[data-theme="dark"] textarea {
-  background-color: #0f172a !important;
+body[data-theme="dark"] .tarjeta-persona:hover,
+body[data-theme="dark"] .tarjeta:hover {
+  background-color: #233146 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+body[data-theme="dark"] .tarjeta-persona.en-baja {
+  background-color: #162032 !important;
+  border-color: #273549 !important;
+  opacity: 0.75;
+}
+
+/* 4. Indicadores y Tarjetas KPI (Fondo Elevado #0f172a, Borde #334155) */
+body[data-theme="dark"] .caja-indicador,
+body[data-theme="dark"] .caja-indicador.destacada,
+body[data-theme="dark"] .caja-indicador-asist,
+body[data-theme="dark"] .caja-indicador-asist.destacada,
+body[data-theme="dark"] .caja-indicador-rep,
+body[data-theme="dark"] .caja-indicador-rep.destacada,
+body[data-theme="dark"] .op-kpi-card,
+body[data-theme="dark"] .acc-kpi-card,
+body[data-theme="dark"] .dash-kpi-card,
+body[data-theme="dark"] .dash-horario-box,
+body[data-theme="dark"] .dato-estado-item {
+  background: #0f172a !important;
   border-color: #334155 !important;
   color: #f8fafc !important;
 }
 
-body[data-theme="dark"] table th {
-  background-color: #182234 !important;
-  color: #f8fafc !important;
-  border-bottom-color: #334155 !important;
+body[data-theme="dark"] .caja-indicador .valor-grande,
+body[data-theme="dark"] .caja-indicador-asist .valor-grande,
+body[data-theme="dark"] .caja-indicador-rep .valor-grande,
+body[data-theme="dark"] .op-kpi-valor,
+body[data-theme="dark"] .acc-kpi-valor,
+body[data-theme="dark"] .dash-kpi-valor,
+body[data-theme="dark"] .dato-estado-item strong {
+  color: #38bdf8 !important;
 }
 
-body[data-theme="dark"] table td {
-  border-bottom-color: #273549 !important;
+body[data-theme="dark"] .caja-indicador .subtexto,
+body[data-theme="dark"] .subtexto-asist,
+body[data-theme="dark"] .caja-indicador-rep .subtexto,
+body[data-theme="dark"] .op-kpi-sub,
+body[data-theme="dark"] .op-kpi-etiqueta,
+body[data-theme="dark"] .acc-kpi-sub,
+body[data-theme="dark"] .acc-kpi-etiqueta,
+body[data-theme="dark"] .dash-kpi-sub,
+body[data-theme="dark"] .dash-horario-box small,
+body[data-theme="dark"] .dato-estado-item small {
+  color: #94a3b8 !important;
+}
+
+/* 5. Barras de Contexto, Alertas y Avisos */
+body[data-theme="dark"] .acc-barra-contexto,
+body[data-theme="dark"] .op-barra-contexto,
+body[data-theme="dark"] .aviso-personal,
+body[data-theme="dark"] .aviso-personal.aviso-alerta,
+body[data-theme="dark"] .aviso-asistencia,
+body[data-theme="dark"] .aviso-asistencia.alerta,
+body[data-theme="dark"] .aviso-reportes,
+body[data-theme="dark"] .aviso-reportes.alerta,
+body[data-theme="dark"] .op-alerta,
+body[data-theme="dark"] .op-alerta-info,
+body[data-theme="dark"] .aceptacion,
+body[data-theme="dark"] .ficha-resumen-incidencia,
+body[data-theme="dark"] .detalle-horario-propuesto {
+  background: #0f172a !important;
+  border-color: #334155 !important;
   color: #e2e8f0 !important;
 }
 
-body[data-theme="dark"] table tr:hover td {
+/* 6. Tablas en Todos los Módulos */
+body[data-theme="dark"] table,
+body[data-theme="dark"] .dash-tabla,
+body[data-theme="dark"] .tabla-personal-escritorio,
+body[data-theme="dark"] .tabla-asistencia,
+body[data-theme="dark"] .tabla-reportes,
+body[data-theme="dark"] .op-tabla,
+body[data-theme="dark"] .acc-tabla {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] .dash-tabla-contenedor,
+body[data-theme="dark"] .tabla-contenedor-personal,
+body[data-theme="dark"] .tabla-contenedor-asist,
+body[data-theme="dark"] .tabla-contenedor-rep,
+body[data-theme="dark"] .op-tabla-contenedor,
+body[data-theme="dark"] .acc-tabla-contenedor {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+body[data-theme="dark"] table th,
+body[data-theme="dark"] .dash-tabla th,
+body[data-theme="dark"] .tabla-personal-escritorio th,
+body[data-theme="dark"] .tabla-asistencia th,
+body[data-theme="dark"] .tabla-asistencia thead th,
+body[data-theme="dark"] .tabla-reportes th,
+body[data-theme="dark"] .op-tabla th,
+body[data-theme="dark"] .acc-tabla th {
+  background-color: #182234 !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+body[data-theme="dark"] table td,
+body[data-theme="dark"] .dash-tabla td,
+body[data-theme="dark"] .tabla-personal-escritorio td,
+body[data-theme="dark"] .tabla-asistencia td,
+body[data-theme="dark"] .tabla-reportes td,
+body[data-theme="dark"] .op-tabla td,
+body[data-theme="dark"] .acc-tabla td {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid #273549 !important;
+}
+
+body[data-theme="dark"] table tr:hover td,
+body[data-theme="dark"] .dash-tabla tr:hover td,
+body[data-theme="dark"] .tabla-personal-escritorio tbody tr:hover td,
+body[data-theme="dark"] .tabla-asistencia tbody tr:hover td,
+body[data-theme="dark"] .tabla-reportes tbody tr:hover td,
+body[data-theme="dark"] .op-tabla tbody tr:hover td,
+body[data-theme="dark"] .acc-tabla tbody tr:hover td {
   background-color: #273549 !important;
+}
+
+body[data-theme="dark"] .dash-tabla tr.fila-activa td,
+body[data-theme="dark"] .tabla-asistencia tr.fila-seleccionada td,
+body[data-theme="dark"] table tr.fila-activa td,
+body[data-theme="dark"] table tr.activa td {
+  background-color: #1e3a5f !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="dark"] .tabla-personal-escritorio tbody tr.fila-inactiva td {
+  background-color: #141e2e !important;
+  color: #64748b !important;
+}
+
+body[data-theme="dark"] .tabla-reportes tfoot td {
+  background-color: #182234 !important;
+  color: #f8fafc !important;
+  border-top: 1px solid #334155 !important;
+}
+
+/* 7. Formularios, Filtros, Entradas de Texto y Selectores */
+body[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] .dash-input-filtro,
+body[data-theme="dark"] .dash-input-busqueda,
+body[data-theme="dark"] .dash-select-filtro,
+body[data-theme="dark"] .dash-select-persona,
+body[data-theme="dark"] .input-personal,
+body[data-theme="dark"] .select-personal,
+body[data-theme="dark"] .input-asist,
+body[data-theme="dark"] .select-asist,
+body[data-theme="dark"] .input-rep,
+body[data-theme="dark"] .select-rep,
+body[data-theme="dark"] .op-input,
+body[data-theme="dark"] .op-select,
+body[data-theme="dark"] .acc-input,
+body[data-theme="dark"] .acc-select,
+body[data-theme="dark"] .acc-textarea {
+  background-color: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] input:disabled,
+body[data-theme="dark"] select:disabled,
+body[data-theme="dark"] textarea:disabled {
+  background-color: #182234 !important;
+  color: #64748b !important;
+  border-color: #273549 !important;
+}
+
+body[data-theme="dark"] input:focus-visible,
+body[data-theme="dark"] select:focus-visible,
+body[data-theme="dark"] textarea:focus-visible {
+  border-color: #2563eb !important;
+  outline: 2px solid rgba(37, 99, 235, 0.5) !important;
+}
+
+/* 8. Botones y Pestañas (Azul Real y Pizarra sin Verde Discordante) */
+/* Botones primarios y pestañas activas */
+body[data-theme="dark"] .btn-personal-primario,
+body[data-theme="dark"] .btn-asist-primario,
+body[data-theme="dark"] .btn-asist-activo,
+body[data-theme="dark"] .btn-reporte-primario,
+body[data-theme="dark"] .btn-reporte-activo,
+body[data-theme="dark"] .op-tab-btn[aria-selected="true"],
+body[data-theme="dark"] .acc-tab-btn[aria-selected="true"],
+body[data-theme="dark"] .op-btn-primario,
+body[data-theme="dark"] .acc-btn-primario,
+body[data-theme="dark"] .tab-btn.activo,
+body[data-theme="dark"] button[aria-selected="true"] {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Botones secundarios e inactivos */
+body[data-theme="dark"] .btn-personal,
+body[data-theme="dark"] .btn-personal-secundario,
+body[data-theme="dark"] .btn-personal-baja,
+body[data-theme="dark"] .btn-asist,
+body[data-theme="dark"] .btn-reporte,
+body[data-theme="dark"] .btn-reporte-secundario,
+body[data-theme="dark"] .op-tab-btn,
+body[data-theme="dark"] .acc-tab-btn,
+body[data-theme="dark"] .op-btn,
+body[data-theme="dark"] .op-btn-secundario,
+body[data-theme="dark"] .acc-btn,
+body[data-theme="dark"] .acc-btn-secundario,
+body[data-theme="dark"] .dash-btn-accion-tabla,
+body[data-theme="dark"] .pestanas-asistencia button:not(.btn-asist-activo):not(.btn-asist-primario),
+body[data-theme="dark"] .subpestanas-asistencia button:not(.btn-asist-activo):not(.btn-asist-primario),
+body[data-theme="dark"] .pestanas-reportes button:not(.btn-reporte-activo):not(.btn-reporte-primario),
+body[data-theme="dark"] .volver {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+body[data-theme="dark"] .btn-personal:hover:not(:disabled),
+body[data-theme="dark"] .btn-personal-secundario:hover:not(:disabled),
+body[data-theme="dark"] .btn-asist:hover:not(:disabled),
+body[data-theme="dark"] .btn-reporte:hover:not(:disabled),
+body[data-theme="dark"] .btn-reporte-secundario:hover:not(:disabled),
+body[data-theme="dark"] .op-tab-btn:hover,
+body[data-theme="dark"] .acc-tab-btn:hover,
+body[data-theme="dark"] .op-btn:hover:not(:disabled),
+body[data-theme="dark"] .acc-btn:hover:not(:disabled),
+body[data-theme="dark"] .dash-btn-accion-tabla:hover {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+
+/* Botones de acción peligrosa */
+body[data-theme="dark"] .btn-asist-peligro,
+body[data-theme="dark"] .op-btn-peligro,
+body[data-theme="dark"] .acc-btn-peligro {
+  background: #991b1b !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+/* 9. Tipografía, Encabezados y Textos Secundarios */
+body[data-theme="dark"] h1,
+body[data-theme="dark"] h2,
+body[data-theme="dark"] h3,
+body[data-theme="dark"] h4,
+body[data-theme="dark"] h5,
+body[data-theme="dark"] h6,
+body[data-theme="dark"] strong,
+body[data-theme="dark"] b,
+body[data-theme="dark"] .detalle-modulo h2,
+body[data-theme="dark"] .detalle-modulo h3,
+body[data-theme="dark"] .tarjeta-persona h3,
+body[data-theme="dark"] .acc-contexto-item label {
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] label,
+body[data-theme="dark"] .acc-label,
+body[data-theme="dark"] .campo-grupo label,
+body[data-theme="dark"] .campo-asist label,
+body[data-theme="dark"] .campo-rep label,
+body[data-theme="dark"] .check-asist {
+  color: #cbd5e1 !important;
+}
+
+body[data-theme="dark"] p,
+body[data-theme="dark"] li,
+body[data-theme="dark"] .detalle-modulo p,
+body[data-theme="dark"] .detalle-modulo ul,
+body[data-theme="dark"] .tarjeta-persona .submeta,
+body[data-theme="dark"] .bloque-planta-nativo,
+body[data-theme="dark"] .lista-historial-nativa {
+  color: #cbd5e1 !important;
+}
+
+body[data-theme="dark"] small,
+body[data-theme="dark"] .ayuda-campo,
+body[data-theme="dark"] .op-ayuda,
+body[data-theme="dark"] .acc-ayuda,
+body[data-theme="dark"] .dash-ficha-detalle {
+  color: #94a3b8 !important;
+}
+
+body[data-theme="dark"] .numero {
+  color: #38bdf8 !important;
+}
+
+body[data-theme="dark"] .etiquetas span {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+body[data-theme="dark"] .ruta {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #94a3b8 !important;
+}
+
+/* Líneas divisorias entre secciones */
+body[data-theme="dark"] .pestanas-asistencia,
+body[data-theme="dark"] .subpestanas-asistencia,
+body[data-theme="dark"] .pestanas-reportes,
+body[data-theme="dark"] .acc-tabs,
+body[data-theme="dark"] .acc-encabezado,
+body[data-theme="dark"] .op-tabs,
+body[data-theme="dark"] .acciones-tarjeta,
+body[data-theme="dark"] .acciones-barra-reportes {
+  border-bottom-color: #334155 !important;
+  border-top-color: #334155 !important;
+}
+
+/* 10. Insignias, Badges de Estado y Chips */
+body[data-theme="dark"] .dash-badge-estado.completado,
+body[data-theme="dark"] .op-badge-activo,
+body[data-theme="dark"] .pastilla-estado.finalizada,
+body[data-theme="dark"] .insignia-rep:not(.planta):not(.inactiva) {
+  background: #064e3b !important;
+  color: #6ee7b7 !important;
+  border: 1px solid #059669 !important;
+}
+
+body[data-theme="dark"] .dash-badge-estado.en-curso,
+body[data-theme="dark"] .op-badge-pausado,
+body[data-theme="dark"] .pastilla-estado.almuerzo {
+  background: #78350f !important;
+  color: #fde047 !important;
+  border: 1px solid #d97706 !important;
+}
+
+body[data-theme="dark"] .dash-badge-estado.sin-registro,
+body[data-theme="dark"] .op-badge-cerrado,
+body[data-theme="dark"] .op-badge-baja,
+body[data-theme="dark"] .pastilla-estado.sin-registro {
+  background: #7f1d1d !important;
+  color: #fca5a5 !important;
+  border: 1px solid #dc2626 !important;
+}
+
+body[data-theme="dark"] .pildora-estado {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #38bdf8 !important;
+}
+
+body[data-theme="dark"] .pildora-estado.baja {
+  background: #1e293b !important;
+  border: 1px solid #475569 !important;
+  color: #94a3b8 !important;
+}
+
+body[data-theme="dark"] .chip-motivo-btn {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+body[data-theme="dark"] .chip-motivo-btn:hover,
+body[data-theme="dark"] .chip-motivo-btn.activo {
+  background: #2563eb !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+/* Barra de progreso de pasantías */
+body[data-theme="dark"] .barra-nativa-fondo,
+body[data-theme="dark"] .barra-mini-progreso {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+}
+
+body[data-theme="dark"] .barra-nativa-relleno,
+body[data-theme="dark"] .barra-mini-relleno {
+  background: linear-gradient(90deg, #2563eb, #38bdf8) !important;
 }
