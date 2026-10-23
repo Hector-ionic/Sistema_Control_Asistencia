@@ -117,19 +117,18 @@
 }
 
 .acc-tab-btn:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid #166534;
   outline-offset: 2px;
 }
 
 .acc-tab-btn[aria-selected="true"] {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background: #164e35;
   color: #ffffff;
-  border-color: #2563eb;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  border-color: #164e35;
 }
 
 .acc-tab-contador {
-  background: rgba(37, 99, 235, 0.15);
+  background: rgba(22, 78, 53, 0.12);
   color: inherit;
   padding: 2px 8px;
   border-radius: 999px;
@@ -221,7 +220,7 @@
 .acc-input:focus-visible,
 .acc-select:focus-visible,
 .acc-textarea:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid #166534;
   outline-offset: 1px;
   border-color: #166534;
 }
@@ -256,7 +255,7 @@
 .acc-check-fila input[type="checkbox"] {
   width: 20px;
   height: 20px;
-  accent-color: #2563eb;
+  accent-color: #164e35;
   flex-shrink: 0;
 }
 
@@ -297,30 +296,27 @@
 }
 
 .acc-btn:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid #166534;
   outline-offset: 2px;
 }
 
 .acc-btn-primario {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background: #164e35;
   color: #ffffff;
-  border-color: #2563eb;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .acc-btn-primario:hover:not(:disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  background: #113e2a;
 }
 
 .acc-btn-secundario {
   background: #ffffff;
-  color: #1e293b;
-  border-color: #cbd5e1;
+  color: #1c3428;
+  border-color: #b7c8be;
 }
 
 .acc-btn-secundario:hover:not(:disabled) {
-  background: #f1f5f9;
+  background: #eff5f1;
 }
 
 .acc-btn-peligro {
@@ -595,22 +591,22 @@
 }
 
 
-/* Modo Oscuro (activado por configuracion.temaOscuro) - Paleta Slate & Aqua Navy Corporativa */
+/* Modo Oscuro (activado por configuracion.temaOscuro) */
 body.sii-tema-oscuro {
-  background-color: #0b1329 !important;
-  color: #f1f5f9 !important;
+  background-color: #0b1510 !important;
+  color: #e6f4ec !important;
 }
 
 body.sii-tema-oscuro main,
 body.sii-tema-oscuro .panel,
 body.sii-tema-oscuro .card {
-  background-color: #1e293b !important;
-  color: #f1f5f9 !important;
-  border-color: #334155 !important;
+  background-color: #112119 !important;
+  color: #e6f4ec !important;
+  border-color: #264234 !important;
 }
 
 .acc-tema-oscuro .acc-encabezado {
-  border-bottom-color: #334155;
+  border-bottom-color: #264234;
 }
 
 .acc-tema-oscuro h2,
@@ -620,7 +616,7 @@ body.sii-tema-oscuro .card {
 .acc-tema-oscuro .acc-kpi-valor,
 .acc-tema-oscuro .acc-label,
 .acc-tema-oscuro .acc-contexto-item label {
-  color: #f8fafc !important;
+  color: #ecfdf5 !important;
 }
 
 .acc-tema-oscuro p,
@@ -629,106 +625,59 @@ body.sii-tema-oscuro .card {
 .acc-tema-oscuro .acc-kpi-sub,
 .acc-tema-oscuro ul,
 .acc-tema-oscuro li {
-  color: #94a3b8 !important;
+  color: #a7f3d0 !important;
 }
 
 .acc-tema-oscuro .acc-barra-contexto,
 .acc-tema-oscuro .acc-filtros-barra,
 .acc-tema-oscuro .acc-form-panel {
-  background: #182234 !important;
-  border-color: #334155 !important;
-  color: #f1f5f9 !important;
+  background: #15291f !important;
+  border-color: #2a4a3a !important;
+  color: #e6f4ec !important;
 }
 
 .acc-tema-oscuro .acc-kpi-card,
 .acc-tema-oscuro .acc-card,
 .acc-tema-oscuro .acc-tabla-contenedor {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #f1f5f9 !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  background: #112219 !important;
+  border-color: #284637 !important;
+  color: #e6f4ec !important;
 }
 
 .acc-tema-oscuro .acc-input,
 .acc-tema-oscuro .acc-select,
 .acc-tema-oscuro .acc-textarea,
 .acc-tema-oscuro .acc-check-fila {
-  background: #0f172a !important;
-  border-color: #334155 !important;
-  color: #f8fafc !important;
-}
-
-.acc-tema-oscuro .acc-input:focus,
-.acc-tema-oscuro .acc-select:focus,
-.acc-tema-oscuro .acc-textarea:focus {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+  background: #0d1a13 !important;
+  border-color: #315744 !important;
+  color: #f0fdf4 !important;
 }
 
 .acc-tema-oscuro .acc-tab-btn {
-  background: #1e293b;
-  border-color: #334155;
-  color: #94a3b8;
-}
-
-.acc-tema-oscuro .acc-tab-btn:hover {
-  background: #273549;
-  color: #f1f5f9;
+  background: #112219;
+  border-color: #2d4f3e;
+  color: #d1fae5;
 }
 
 .acc-tema-oscuro .acc-tab-btn[aria-selected="true"] {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
-  border-color: #3b82f6 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-}
-
-.acc-tema-oscuro .acc-tab-contador {
-  background: rgba(255, 255, 255, 0.18) !important;
-  color: #ffffff !important;
-}
-
-.acc-tema-oscuro .acc-btn-primario {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
-  border-color: #3b82f6 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-}
-
-.acc-tema-oscuro .acc-btn-primario:hover:not(:disabled) {
-  background: #1d4ed8 !important;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45) !important;
+  background: #059669;
+  border-color: #10b981;
+  color: #ffffff;
 }
 
 .acc-tema-oscuro .acc-btn-secundario {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #e2e8f0 !important;
-}
-
-.acc-tema-oscuro .acc-btn-secundario:hover:not(:disabled) {
-  background: #334155 !important;
-  color: #ffffff !important;
+  background: #183024;
+  border-color: #345c48;
+  color: #ecfdf5;
 }
 
 .acc-tema-oscuro .acc-tabla th {
-  background: #182234 !important;
-  color: #f8fafc !important;
-  border-bottom-color: #334155 !important;
+  background: #183024;
+  color: #ecfdf5;
+  border-bottom-color: #2b4c3b;
 }
 
 .acc-tema-oscuro .acc-tabla td {
-  border-bottom-color: #1e293b !important;
-  color: #e2e8f0 !important;
-}
-
-.acc-tema-oscuro .acc-tabla tr:hover td {
-  background-color: #273549 !important;
-}
-
-.acc-tema-oscuro .acc-badge-rol,
-.acc-tema-oscuro .acc-pill {
-  background: rgba(56, 189, 248, 0.15) !important;
-  color: #38bdf8 !important;
-  border-color: rgba(56, 189, 248, 0.3) !important;
+  border-bottom-color: #213b2e;
+  color: #e6f4ec;
 }
