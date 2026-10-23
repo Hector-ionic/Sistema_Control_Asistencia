@@ -759,3 +759,195 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Selector de Preferencia Visual en la Barra Lateral */
+.dash-sidebar-theme {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.dash-sidebar-theme-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--dash-sidebar-text);
+  letter-spacing: 0.3px;
+}
+
+.dash-theme-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 4px 8px 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dash-theme-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.dash-theme-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.dash-theme-switch {
+  width: 28px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  transition: background 0.2s;
+  box-sizing: border-box;
+}
+
+.dash-theme-switch.activo {
+  background: #2563eb;
+}
+
+.dash-theme-switch-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dash-theme-switch.activo .dash-theme-switch-thumb {
+  transform: translateX(12px);
+}
+
+/* ==========================================================================
+   TEMA OSCURO GLOBAL (Web Dashboard y Módulos) - Paleta Slate & Aqua Navy
+   ========================================================================== */
+body[data-theme="dark"] {
+  --dash-bg: #0b1329;
+  --dash-card-bg: #1e293b;
+  --dash-border: #334155;
+  --dash-text-main: #f8fafc;
+  --dash-text-muted: #94a3b8;
+  background-color: #0b1329 !important;
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] .dash-topbar {
+  background: #111e38;
+  border-bottom-color: #334155;
+}
+
+body[data-theme="dark"] .dash-greeting h1 {
+  color: #f8fafc;
+}
+
+body[data-theme="dark"] .dash-clock {
+  background: #1e293b;
+  border-color: #334155;
+  color: #38bdf8;
+}
+
+body[data-theme="dark"] .dash-kpi-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body[data-theme="dark"] .dash-panel-izq,
+body[data-theme="dark"] .dash-panel-der,
+body[data-theme="dark"] .dash-ficha-persona,
+body[data-theme="dark"] .dash-horario-box {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body[data-theme="dark"] .dash-tabla th {
+  background: #182234;
+  color: #f8fafc;
+  border-bottom-color: #334155;
+}
+
+body[data-theme="dark"] .dash-tabla td {
+  border-bottom-color: #273549;
+  color: #e2e8f0;
+}
+
+body[data-theme="dark"] .dash-tabla tr:hover td {
+  background: #273549;
+}
+
+body[data-theme="dark"] .dash-select-persona,
+body[data-theme="dark"] .dash-input-busqueda,
+body[data-theme="dark"] .dash-select-filtro {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] .dash-btn-accion-tabla {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+body[data-theme="dark"] .dash-btn-accion-tabla:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+/* Reglas de integración con submódulos en modo oscuro */
+body[data-theme="dark"] .card,
+body[data-theme="dark"] .panel,
+body[data-theme="dark"] .op-card,
+body[data-theme="dark"] .op-form-card,
+body[data-theme="dark"] .op-tabla-card,
+body[data-theme="dark"] .op-kpi-card,
+body[data-theme="dark"] .op-filtros-barra,
+body[data-theme="dark"] .rep-card,
+body[data-theme="dark"] .rep-tabla-contenedor,
+body[data-theme="dark"] .pers-card,
+body[data-theme="dark"] .pers-tabla-contenedor,
+body[data-theme="dark"] .pers-form-card,
+body[data-theme="dark"] .panel-jornada,
+body[data-theme="dark"] .panel-incidencias,
+body[data-theme="dark"] .panel-qr,
+body[data-theme="dark"] .tarjeta-solicitud-qr,
+body[data-theme="dark"] .seccion-jornada,
+body[data-theme="dark"] .bloque-formulario,
+body[data-theme="dark"] .contenedor-modulo {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body[data-theme="dark"] table th {
+  background-color: #182234 !important;
+  color: #f8fafc !important;
+  border-bottom-color: #334155 !important;
+}
+
+body[data-theme="dark"] table td {
+  border-bottom-color: #273549 !important;
+  color: #e2e8f0 !important;
+}
+
+body[data-theme="dark"] table tr:hover td {
+  background-color: #273549 !important;
+}

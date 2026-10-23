@@ -68,6 +68,34 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [loginCargando, setLoginCargando] = useState(false);
 
+  // Preferencia visual global (Modo Claro / Oscuro en toda la web)
+  const [temaOscuro, setTemaOscuro] = useState(() => {
+    try {
+      return localStorage.getItem("aquapark_theme") === "dark";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      if (temaOscuro) {
+        document.body.setAttribute("data-theme", "dark");
+        document.body.classList.add("sii-tema-oscuro");
+      } else {
+        document.body.removeAttribute("data-theme");
+        document.body.classList.remove("sii-tema-oscuro");
+      }
+    }
+    try {
+      localStorage.setItem("aquapark_theme", temaOscuro ? "dark" : "light");
+    } catch {}
+  }, [temaOscuro]);
+
+  const alternarTemaVisual = () => {
+    setTemaOscuro((prev) => !prev);
+  };
+
   // Reloj en tiempo real
   const [reloj, setReloj] = useState(() => obtenerHoraActualBolivia());
   useEffect(() => {
@@ -195,7 +223,7 @@ export default function App() {
         if (prev && listaP.some((p) => p.codigo === prev)) {
           return prev;
         }
-        return listaP.length > 0 ? listaP[0].codigo : "";
+        return "";
       });
     } catch {
       // Ignorar fallos de red puntuales
@@ -270,11 +298,8 @@ export default function App() {
 
   // Persona seleccionada para la ficha izquierda
   const personaSeleccionada = useMemo(() => {
-    return (
-      personalLista.find((p) => p.codigo === codigoSeleccionado) ||
-      personalLista[0] ||
-      null
-    );
+    if (!codigoSeleccionado) return null;
+    return personalLista.find((p) => p.codigo === codigoSeleccionado) || null;
   }, [personalLista, codigoSeleccionado]);
 
   const asistenciaSeleccionada = useMemo(() => {
@@ -420,6 +445,22 @@ export default function App() {
           </button>
         </nav>
 
+        {/* Selector de Preferencia Visual accesible para todos en el menú lateral */}
+        <div className="dash-sidebar-theme">
+          <span className="dash-sidebar-theme-label">Preferencia visual</span>
+          <button
+            type="button"
+            className="dash-theme-btn"
+            onClick={alternarTemaVisual}
+            title={temaOscuro ? "Cambiar a Tema Claro" : "Cambiar a Tema Oscuro"}
+          >
+            <span className="dash-theme-tag">{temaOscuro ? "Oscuro" : "Claro"}</span>
+            <span className={`dash-theme-switch ${temaOscuro ? "activo" : ""}`}>
+              <span className="dash-theme-switch-thumb" />
+            </span>
+          </button>
+        </div>
+
         <div className="dash-sidebar-footer">
           <div className="dash-user-info">
             <span className="dash-user-name">{usuario.nombreUsuario}</span>
@@ -526,6 +567,7 @@ export default function App() {
                       value={codigoSeleccionado}
                       onChange={(e) => setCodigoSeleccionado(e.target.value)}
                     >
+                      <option value="">Seleccionar personal</option>
                       {personalLista.map((p) => (
                         <option key={p.codigo} value={p.codigo}>
                           {p.codigo} — {p.nombres} {p.apellidos}
@@ -534,7 +576,7 @@ export default function App() {
                     </select>
                   </div>
 
-                  {personaSeleccionada && (
+                  {personaSeleccionada ? (
                     <div className="dash-ficha-persona">
                       <div className="dash-ficha-codigo">
                         {personaSeleccionada.codigo}
@@ -596,6 +638,11 @@ export default function App() {
                       >
                         Gestionar marcación en Asistencia →
                       </button>
+                    </div>
+                  ) : (
+                    <div className="dash-ficha-vacia" style={{ textAlign: "center", padding: "40px 16px", color: "var(--dash-text-muted)" }}>
+                      <p style={{ margin: "0 0 6px 0", fontWeight: "700", fontSize: "14px", color: "var(--dash-text-main)" }}>Seleccionar personal</p>
+                      <span style={{ fontSize: "12px" }}>Seleccione a una persona en el menú desplegable o en la lista de hoy para ver su ficha y estado.</span>
                     </div>
                   )}
                 </div>
