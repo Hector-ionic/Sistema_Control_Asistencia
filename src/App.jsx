@@ -68,33 +68,16 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [loginCargando, setLoginCargando] = useState(false);
 
-  // Preferencia visual global (Modo Claro / Oscuro en toda la web)
-  const [temaOscuro, setTemaOscuro] = useState(() => {
-    try {
-      return localStorage.getItem("aquapark_theme") === "dark";
-    } catch {
-      return false;
-    }
-  });
-
+  // Asegurar que el tema visual se mantenga en el modo original
   useEffect(() => {
     if (typeof document !== "undefined") {
-      if (temaOscuro) {
-        document.body.setAttribute("data-theme", "dark");
-        document.body.classList.add("sii-tema-oscuro");
-      } else {
-        document.body.removeAttribute("data-theme");
-        document.body.classList.remove("sii-tema-oscuro");
-      }
+      document.body.removeAttribute("data-theme");
+      document.body.classList.remove("sii-tema-oscuro");
     }
     try {
-      localStorage.setItem("aquapark_theme", temaOscuro ? "dark" : "light");
+      localStorage.removeItem("aquapark_theme");
     } catch {}
-  }, [temaOscuro]);
-
-  const alternarTemaVisual = () => {
-    setTemaOscuro((prev) => !prev);
-  };
+  }, []);
 
   // Reloj en tiempo real
   const [reloj, setReloj] = useState(() => obtenerHoraActualBolivia());
@@ -445,21 +428,7 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Selector de Preferencia Visual accesible para todos en el menú lateral */}
-        <div className="dash-sidebar-theme">
-          <span className="dash-sidebar-theme-label">Preferencia visual</span>
-          <button
-            type="button"
-            className="dash-theme-btn"
-            onClick={alternarTemaVisual}
-            title={temaOscuro ? "Cambiar a Tema Claro" : "Cambiar a Tema Oscuro"}
-          >
-            <span className="dash-theme-tag">{temaOscuro ? "Oscuro" : "Claro"}</span>
-            <span className={`dash-theme-switch ${temaOscuro ? "activo" : ""}`}>
-              <span className="dash-theme-switch-thumb" />
-            </span>
-          </button>
-        </div>
+
 
         <div className="dash-sidebar-footer">
           <div className="dash-user-info">
