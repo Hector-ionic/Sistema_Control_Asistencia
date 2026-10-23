@@ -113,9 +113,10 @@ export default function Acceso({ modulo, token: tokenExterno = "", usuario: usua
         setEstadoBackend("Modo de prueba en memoria activo");
       }
 
-      const tokenExistente = obtenerTokenAccesoMemoria();
+      const tokenExistente = tokenExterno || obtenerTokenAccesoMemoria();
       if (activo && tokenExistente) {
         setTokenSesion(tokenExistente);
+        establecerSesionAccesoMemoria(tokenExistente, usuarioExterno || obtenerSesionAccesoMemoria());
         setUsuarioActual(obtenerSesionAccesoMemoria());
         setExpiracionMs(obtenerExpiracionSesionMemoria());
         await recargarColecciones(usarMem, "normal");
